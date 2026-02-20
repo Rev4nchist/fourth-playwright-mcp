@@ -37,7 +37,7 @@ def mount_playwright(mcp: FastMCP) -> None:
 
     transport = NpxStdioTransport(
         package="@playwright/mcp",
-        args=["--headless", "--isolated"],
+        args=["--headless", "--isolated", "--no-sandbox"],
         env_vars=env,
     )
 
