@@ -44,9 +44,9 @@ RUN apt-get update && apt-get install -y wget gnupg2 --no-install-recommends && 
     rm -f google-chrome-stable_current_amd64.deb && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright browsers + system deps
+# Install Playwright browsers (system deps already satisfied by Chrome .deb above)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN npx playwright install chromium && npx playwright install-deps chrome
+RUN npx playwright install chromium
 
 # Install Python dependencies
 COPY pyproject.toml ./
