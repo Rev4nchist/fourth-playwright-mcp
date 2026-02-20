@@ -53,14 +53,14 @@ def register_navigation_tools(mcp: FastMCP) -> None:
             progress=0.3, total=1.0, message=f"Navigating to {module}"
         )
 
-        await ctx.session.call_tool("playwright_browser_navigate", {"url": url})
+        await ctx.fastmcp.call_tool("playwright_browser_navigate", {"url": url})
 
         await ctx.report_progress(
             progress=0.8, total=1.0, message="Waiting for page load"
         )
 
         # Wait for SPA to load
-        snapshot = await ctx.session.call_tool("playwright_browser_snapshot", {})
+        snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
         return {
             "module": module_lower,
@@ -90,7 +90,7 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 message=f"Checking page load ({attempt + 1}s)",
             )
 
-            snapshot = await ctx.session.call_tool("playwright_browser_snapshot", {})
+            snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
             # If we got a non-empty snapshot, the page has content
             if snapshot and str(snapshot).strip():

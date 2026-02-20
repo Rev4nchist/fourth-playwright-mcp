@@ -28,25 +28,25 @@ def register_auth_tools(mcp: FastMCP) -> None:
         await ctx.report_progress(progress=0.1, total=1.0, message="Navigating to login page")
 
         # Navigate to the login URL
-        await ctx.session.call_tool("playwright_browser_navigate", {"url": url})
+        await ctx.fastmcp.call_tool("playwright_browser_navigate", {"url": url})
 
         await ctx.report_progress(progress=0.3, total=1.0, message="Entering credentials")
 
         if sso_provider:
             # Click SSO button first
-            await ctx.session.call_tool(
+            await ctx.fastmcp.call_tool(
                 "playwright_browser_click",
                 {"element": f"SSO login button for {sso_provider}", "ref": "sso-button"},
             )
 
         # Fill username
-        await ctx.session.call_tool(
+        await ctx.fastmcp.call_tool(
             "playwright_browser_type",
             {"element": "username field", "ref": "username", "text": username},
         )
 
         # Fill password
-        await ctx.session.call_tool(
+        await ctx.fastmcp.call_tool(
             "playwright_browser_type",
             {"element": "password field", "ref": "password", "text": password},
         )
@@ -54,7 +54,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
         await ctx.report_progress(progress=0.6, total=1.0, message="Submitting login")
 
         # Submit
-        await ctx.session.call_tool(
+        await ctx.fastmcp.call_tool(
             "playwright_browser_click",
             {"element": "login submit button", "ref": "submit"},
         )
@@ -62,7 +62,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
         await ctx.report_progress(progress=0.9, total=1.0, message="Verifying login success")
 
         # Take snapshot to verify login succeeded
-        result = await ctx.session.call_tool("playwright_browser_snapshot", {})
+        result = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
         return {
             "status": "logged_in",
@@ -76,9 +76,16 @@ def register_auth_tools(mcp: FastMCP) -> None:
         """Get current Fourth user context.
 
         Returns the current user, their permissions, and active restaurant/location
-        from the Fourth application UI.
+        from the Fourth application UI. Requires an active browser session
+        (call fourth_login first).
         """
-        snapshot = await ctx.session.call_tool("playwright_browser_snapshot", {})
+        try:
+            snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
+        except Exception as e:
+            return {
+                "error": "No active browser session. Call fourth_login first to authenticate.",
+                "detail": str(e),
+            }
 
         return {
             "snapshot": snapshot,

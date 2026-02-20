@@ -24,7 +24,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
             progress=0.3, total=1.0, message="Capturing page snapshot"
         )
 
-        snapshot = await ctx.session.call_tool("playwright_browser_snapshot", {})
+        snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
         return {
             "table_description": table_description,
@@ -57,7 +57,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
             progress=0.2, total=1.0, message="Capturing accessibility snapshot"
         )
 
-        results["snapshot"] = await ctx.session.call_tool(
+        results["snapshot"] = await ctx.fastmcp.call_tool(
             "playwright_browser_snapshot", {}
         )
 
@@ -65,7 +65,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
             await ctx.report_progress(
                 progress=0.6, total=1.0, message="Capturing screenshot"
             )
-            results["screenshot"] = await ctx.session.call_tool(
+            results["screenshot"] = await ctx.fastmcp.call_tool(
                 "playwright_browser_screenshot", {}
             )
 
