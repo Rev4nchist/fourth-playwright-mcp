@@ -1,0 +1,12 @@
+{
+  "name": "fourth-playwright-mcp-subprocess",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node.js subprocess for @playwright/mcp browser automation",
+  "dependencies": {
+    "@playwright/mcp": "^0.0.28"
+  },
+  "scripts": {
+    "postinstall": "npx playwright install chromium"
+  }
+}

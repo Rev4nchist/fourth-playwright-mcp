@@ -1,0 +1,33 @@
+[project]
+name = "fourth-playwright-mcp"
+version = "0.1.0"
+description = "Fourth Playwright MCP server - FastMCP v3 orchestration with @playwright/mcp subprocess"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=3.0.0",
+    "uvicorn",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
