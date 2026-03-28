@@ -1,0 +1,257 @@
+"""Tests for web form automation tools."""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.tools.forms import register_form_tools
+
+
+@pytest.fixture
+def mcp():
+    """Create a mock FastMCP instance that captures tool registrations."""
+    mock_mcp = MagicMock()
+    registered_tools: dict[str, callable] = {}
+
+    def tool_decorator(func):
+        registered_tools[func.__name__] = func
+        return func
+
+    mock_mcp.tool = tool_decorator
+    mock_mcp._registered_tools = registered_tools
+    return mock_mcp
+
+
+@pytest.fixture
+def ctx():
+    """Create a mock Context with fastmcp call_tool support."""
+    mock_ctx = MagicMock()
+    mock_ctx.report_progress = AsyncMock()
+    mock_ctx.fastmcp = MagicMock()
+    mock_ctx.fastmcp.call_tool = AsyncMock()
+    return mock_ctx
+
+
+@pytest.fixture
+def tools(mcp):
+    """Register form tools and return the registered tool functions."""
+    register_form_tools(mcp)
+    return mcp._registered_tools
+
+
+# --- web_discover_form tests ---
+
+
+class TestWebDiscoverForm:
+    """Tests for the web_discover_form tool."""
+
+    def test_tool_is_registered(self, tools):
+        assert "web_discover_form" in tools
+
+    @pytest.mark.asyncio
+    async def test_returns_snapshot_and_instruction(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot data]"
+
+        result = await tools["web_discover_form"](ctx=ctx)
+
+        assert "snapshot" in result
+        assert result["snapshot"] == "[snapshot data]"
+        assert "instruction" in result
+        assert "form_description" in result
+
+    @pytest.mark.asyncio
+    async def test_default_form_description(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+
+        result = await tools["web_discover_form"](ctx=ctx)
+
+        assert result["form_description"] == "main form on page"
+
+    @pytest.mark.asyncio
+    async def test_custom_form_description(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+
+        result = await tools["web_discover_form"](
+            ctx=ctx, form_description="login form"
+        )
+
+        assert result["form_description"] == "login form"
+        assert "login form" in result["instruction"]
+
+    @pytest.mark.asyncio
+    async def test_calls_browser_snapshot(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+
+        await tools["web_discover_form"](ctx=ctx)
+
+        ctx.fastmcp.call_tool.assert_called_once_with(
+            "playwright_browser_snapshot", {}
+        )
+
+    @pytest.mark.asyncio
+    async def test_reports_progress(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+
+        await tools["web_discover_form"](ctx=ctx)
+
+        ctx.report_progress.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_instruction_mentions_field_attributes(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+
+        result = await tools["web_discover_form"](ctx=ctx)
+
+        instruction = result["instruction"]
+        for keyword in ["label", "type", "ref", "current_value", "options"]:
+            assert keyword in instruction, f"Instruction missing '{keyword}'"
+
+
+# --- web_fill_form tests ---
+
+
+class TestWebFillForm:
+    """Tests for the web_fill_form tool."""
+
+    def test_tool_is_registered(self, tools):
+        assert "web_fill_form" in tools
+
+    @pytest.mark.asyncio
+    async def test_fills_text_fields(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [
+            {"ref": "r1", "value": "hello", "type": "text"},
+            {"ref": "r2", "value": "world", "type": "text"},
+        ]
+
+        result = await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        assert result["filled_count"] == 2
+        assert result["total_fields"] == 2
+        assert result["errors"] == []
+
+    @pytest.mark.asyncio
+    async def test_fills_select_field(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [{"ref": "r1", "value": "option1", "type": "select"}]
+
+        await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        # Should call select_option, not type
+        calls = ctx.fastmcp.call_tool.call_args_list
+        select_call = calls[0]
+        assert select_call[0][0] == "playwright_browser_select_option"
+        assert select_call[0][1]["values"] == ["option1"]
+
+    @pytest.mark.asyncio
+    async def test_fills_checkbox_field(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [{"ref": "r1", "value": "on", "type": "checkbox"}]
+
+        await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        calls = ctx.fastmcp.call_tool.call_args_list
+        click_call = calls[0]
+        assert click_call[0][0] == "playwright_browser_click"
+
+    @pytest.mark.asyncio
+    async def test_fills_radio_field(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [{"ref": "r1", "value": "opt", "type": "radio"}]
+
+        await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        calls = ctx.fastmcp.call_tool.call_args_list
+        click_call = calls[0]
+        assert click_call[0][0] == "playwright_browser_click"
+
+    @pytest.mark.asyncio
+    async def test_default_type_is_text(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [{"ref": "r1", "value": "hello"}]  # no type specified
+
+        await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        calls = ctx.fastmcp.call_tool.call_args_list
+        type_call = calls[0]
+        assert type_call[0][0] == "playwright_browser_type"
+
+    @pytest.mark.asyncio
+    async def test_continues_on_error(self, tools, ctx):
+        """Errors on one field should not prevent filling remaining fields."""
+        call_count = 0
+
+        async def side_effect(tool_name, args):
+            nonlocal call_count
+            call_count += 1
+            if tool_name == "playwright_browser_type" and call_count == 1:
+                raise RuntimeError("Element not found")
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+
+        fields = [
+            {"ref": "r1", "value": "fail", "type": "text"},
+            {"ref": "r2", "value": "succeed", "type": "text"},
+        ]
+
+        result = await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        assert result["filled_count"] == 1
+        assert result["total_fields"] == 2
+        assert len(result["errors"]) == 1
+        assert result["errors"][0]["ref"] == "r1"
+
+    @pytest.mark.asyncio
+    async def test_returns_verification_snapshot(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [{"ref": "r1", "value": "hello", "type": "text"}]
+
+        result = await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        assert "snapshot" in result
+        # Last call should be the verification snapshot
+        last_call = ctx.fastmcp.call_tool.call_args_list[-1]
+        assert last_call[0][0] == "playwright_browser_snapshot"
+
+    @pytest.mark.asyncio
+    async def test_reports_progress_for_each_field(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [
+            {"ref": "r1", "value": "a", "type": "text"},
+            {"ref": "r2", "value": "b", "type": "text"},
+        ]
+
+        await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        # Should report at least: initial, per-field, and verification
+        assert ctx.report_progress.call_count >= 3
+
+    @pytest.mark.asyncio
+    async def test_empty_fields_list(self, tools, ctx):
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+
+        result = await tools["web_fill_form"](ctx=ctx, fields=[])
+
+        assert result["filled_count"] == 0
+        assert result["total_fields"] == 0
+        assert result["errors"] == []
+
+    @pytest.mark.asyncio
+    async def test_email_and_password_use_type(self, tools, ctx):
+        """Email and password fields should use playwright_browser_type."""
+        ctx.fastmcp.call_tool.return_value = "[snapshot]"
+        fields = [
+            {"ref": "r1", "value": "user@test.com", "type": "email"},
+            {"ref": "r2", "value": "secret123", "type": "password"},
+        ]
+
+        await tools["web_fill_form"](ctx=ctx, fields=fields)
+
+        type_calls = [
+            c for c in ctx.fastmcp.call_tool.call_args_list
+            if c[0][0] == "playwright_browser_type"
+        ]
+        assert len(type_calls) == 2

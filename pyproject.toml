@@ -1,7 +1,7 @@
 [project]
-name = "fourth-playwright-mcp"
+name = "playwright-web-mcp"
 version = "0.1.0"
-description = "Fourth Playwright MCP server - FastMCP v3 orchestration with @playwright/mcp subprocess"
+description = "General-purpose web automation MCP server - FastMCP v3 orchestration with @playwright/mcp subprocess"
 requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=3.0.0",

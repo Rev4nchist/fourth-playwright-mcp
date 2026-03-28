@@ -1,109 +1,138 @@
-"""Fourth navigation tools."""
+"""Web navigation tools."""
+
+import asyncio
 
 from fastmcp import Context, FastMCP
 
-# Known Fourth module paths
-FOURTH_MODULES: dict[str, str] = {
-    "dashboard": "/dashboard",
-    "scheduling": "/scheduling",
-    "labor": "/labor",
-    "inventory": "/inventory",
-    "recipes": "/recipes",
-    "purchasing": "/purchasing",
-    "reports": "/reports",
-    "admin": "/admin",
-    "employees": "/employees",
-    "timekeeping": "/timekeeping",
-    "forecasting": "/forecasting",
-    "menu": "/menu",
-    "operations": "/operations",
-}
-
 
 def register_navigation_tools(mcp: FastMCP) -> None:
-    """Register Fourth navigation tools on the MCP server."""
+    """Register web navigation tools on the MCP server."""
 
     @mcp.tool
-    async def fourth_navigate_module(
-        module: str,
+    async def web_navigate_and_wait(
+        url: str,
         ctx: Context,
-        base_url: str = "https://app.fourth.com",
+        wait_for_text: str | None = None,
+        timeout_seconds: int = 10,
     ) -> dict:
-        """Navigate to a specific Fourth module by name.
+        """Navigate to a URL and wait for the page to be ready.
+
+        Combines navigation with SPA-aware content waiting.
 
         Args:
-            module: Module name (e.g., 'scheduling', 'inventory', 'reports').
-                    Use 'list' to see all available modules.
-            base_url: Base URL of the Fourth application
+            url: The URL to navigate to
+            wait_for_text: Optional text to wait for on the page
+            timeout_seconds: Maximum wait time in seconds
         """
-        if module == "list":
-            return {"available_modules": list(FOURTH_MODULES.keys())}
-
-        module_lower = module.lower()
-        if module_lower not in FOURTH_MODULES:
-            return {
-                "error": f"Unknown module: {module}",
-                "available_modules": list(FOURTH_MODULES.keys()),
-            }
-
-        path = FOURTH_MODULES[module_lower]
-        url = f"{base_url}{path}"
-
         await ctx.report_progress(
-            progress=0.3, total=1.0, message=f"Navigating to {module}"
+            progress=0.2, total=1.0, message="Navigating to URL"
         )
 
         await ctx.fastmcp.call_tool("playwright_browser_navigate", {"url": url})
 
+        loaded = False
+        elapsed = 0
+
+        if wait_for_text:
+            try:
+                await ctx.fastmcp.call_tool(
+                    "playwright_browser_wait_for", {"text": wait_for_text}
+                )
+                loaded = True
+                elapsed = 1
+            except Exception:
+                loaded = False
+                elapsed = timeout_seconds
+        else:
+            for attempt in range(timeout_seconds):
+                snapshot = await ctx.fastmcp.call_tool(
+                    "playwright_browser_snapshot", {}
+                )
+                elapsed = attempt + 1
+                if snapshot and str(snapshot).strip():
+                    loaded = True
+                    break
+                await asyncio.sleep(1)
+
         await ctx.report_progress(
-            progress=0.8, total=1.0, message="Waiting for page load"
+            progress=0.9, total=1.0, message="Page loaded"
         )
 
-        # Wait for SPA to load
         snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
         return {
-            "module": module_lower,
             "url": url,
+            "loaded": loaded,
+            "wait_seconds": elapsed,
             "snapshot": snapshot,
         }
 
     @mcp.tool
-    async def fourth_wait_for_load(
+    async def web_wait_for_ready(
         ctx: Context,
         timeout_seconds: int = 10,
+        indicator_text: str | None = None,
     ) -> dict:
-        """Wait for Fourth SPA to fully load.
+        """Wait for the current page to finish loading.
 
-        Polls the page snapshot until the main content area is detected
-        or timeout is reached. Useful after navigation or login.
+        Useful after navigation, form submission, or any action that
+        triggers a page update.
 
         Args:
             timeout_seconds: Maximum wait time in seconds
+            indicator_text: Optional specific text to wait for
         """
-        import asyncio
+        snapshot = None
+
+        if indicator_text:
+            await ctx.fastmcp.call_tool(
+                "playwright_browser_wait_for", {"text": indicator_text}
+            )
+            snapshot = await ctx.fastmcp.call_tool(
+                "playwright_browser_snapshot", {}
+            )
+            return {
+                "loaded": True,
+                "wait_seconds": 1,
+                "snapshot": snapshot,
+            }
 
         for attempt in range(timeout_seconds):
-            await ctx.report_progress(
-                progress=attempt / timeout_seconds,
-                total=1.0,
-                message=f"Checking page load ({attempt + 1}s)",
+            snapshot = await ctx.fastmcp.call_tool(
+                "playwright_browser_snapshot", {}
             )
-
-            snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
-
-            # If we got a non-empty snapshot, the page has content
             if snapshot and str(snapshot).strip():
                 return {
                     "loaded": True,
                     "wait_seconds": attempt + 1,
                     "snapshot": snapshot,
                 }
-
             await asyncio.sleep(1)
 
         return {
             "loaded": False,
             "wait_seconds": timeout_seconds,
-            "message": "Page did not fully load within timeout",
+            "snapshot": snapshot,
+        }
+
+    @mcp.tool
+    async def web_discover_navigation(
+        ctx: Context,
+    ) -> dict:
+        """Discover navigation structure on the current page.
+
+        Returns the page snapshot with instructions to identify all
+        navigable elements.
+        """
+        snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
+
+        return {
+            "snapshot": snapshot,
+            "instruction": (
+                "Identify all navigation elements on this page: "
+                "main menus, navigation bars, sidebars, breadcrumbs, "
+                "tab bars, pagination controls, and important links. "
+                "For each element, provide its text label and ref ID "
+                "from the snapshot."
+            ),
         }

@@ -1,8 +1,8 @@
 {
-  "name": "fourth-playwright-mcp-subprocess",
+  "name": "playwright-web-mcp-subprocess",
   "version": "0.1.0",
   "private": true,
-  "description": "Node.js subprocess for @playwright/mcp browser automation",
+  "description": "@playwright/mcp subprocess dependency for playwright-web-mcp",
   "dependencies": {
     "@playwright/mcp": "^0.0.28"
   },

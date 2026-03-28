@@ -1,6 +1,6 @@
-"""Fourth Playwright MCP Server.
+"""Playwright Web MCP Server.
 
-FastMCP v3 orchestration layer with @playwright/mcp subprocess integration.
+General-purpose web automation MCP server with @playwright/mcp subprocess integration.
 Designed for Railway deployment as a Claude.ai Custom Connector.
 """
 
@@ -13,6 +13,7 @@ from src.providers.playwright_subprocess import mount_playwright
 from src.providers.skills import mount_skills
 from src.tools.auth import register_auth_tools
 from src.tools.extraction import register_extraction_tools
+from src.tools.forms import register_form_tools
 from src.tools.navigation import register_navigation_tools
 
 SERVER_INSTRUCTIONS = """
@@ -24,24 +25,27 @@ SERVER_INSTRUCTIONS = """
 2. **playwright_browser_wait_for time is in SECONDS, not milliseconds.**
    Pass 2 for a 2-second wait, not 2000. The time parameter must be a number.
 
-3. **fourth_get_user_context requires an active browser session.**
-   Call fourth_login first to authenticate before requesting user context.
+3. **Use web_navigate_and_wait for navigation.** It combines navigation with SPA-aware waiting
+   in a single call. Pass wait_for_text for content-based waiting.
 
-4. **Use playwright_browser_snapshot (accessibility tree) for element targeting.**
-   Only use playwright_browser_take_screenshot for human-readable output or documentation.
+4. **Use web_discover_form before web_fill_form.** Discover identifies field refs and types,
+   then fill uses those refs for efficient batch input.
 
-5. **After navigation, wait for the page to stabilise before snapshotting.**
-   Use playwright_browser_wait_for with { "text": "expected-element" } rather than
-   a fixed time wait where possible.
+5. **Use playwright_browser_snapshot (accessibility tree) for element targeting.**
+   Only use playwright_browser_take_screenshot for human-readable output or visual data.
 
-6. **Tab management:** playwright_browser_tabs with action "close" without an index
+6. **After actions, wait for the page to stabilise before snapshotting.**
+   Use playwright_browser_wait_for with { "text": "expected-element" } or
+   web_wait_for_ready for SPA content loading.
+
+7. **Tab management:** playwright_browser_tabs with action "close" without an index
    closes the current tab and auto-switches to the previous one.
 """.strip()
 
 # Create server with OAuth if configured
 oauth = create_oauth_proxy()
 mcp = FastMCP(
-    "Fourth Playwright MCP",
+    "Playwright Web MCP",
     instructions=SERVER_INSTRUCTIONS,
     auth=oauth,
 )
@@ -54,11 +58,12 @@ mount_playwright(mcp)
 # Mount skills directory provider
 mount_skills(mcp)
 
-# --- Custom Fourth Tools ---
+# --- Web Automation Tools ---
 
 register_auth_tools(mcp)
 register_navigation_tools(mcp)
 register_extraction_tools(mcp)
+register_form_tools(mcp)
 
 
 # --- Wrapper: browser_wait_for with type coercion ---
@@ -97,7 +102,7 @@ async def health(request):
     """Health check endpoint for Railway."""
     from starlette.responses import JSONResponse
 
-    return JSONResponse({"status": "healthy", "server": "fourth-playwright-mcp"})
+    return JSONResponse({"status": "healthy", "server": "playwright-web-mcp"})
 
 
 # --- Entry Point ---

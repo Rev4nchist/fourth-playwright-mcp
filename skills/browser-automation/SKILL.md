@@ -1,38 +1,56 @@
 # Browser Automation
 
 ## Overview
-This skill provides patterns for effective browser automation using the Playwright MCP tools.
+This skill provides patterns for effective web automation using Playwright Web MCP. The server exposes ~70 low-level Playwright tools (prefixed `playwright_`) plus 10 higher-level orchestration tools (prefixed `web_`).
 
-## Key Patterns
+## Quick Start
+1. Navigate: `web_navigate_and_wait` — goes to URL and waits for content
+2. Discover: `playwright_browser_snapshot` — see what's on the page
+3. Interact: `playwright_browser_click` / `playwright_browser_type` — click and type
+4. Extract: `web_extract_table` / `web_extract_page_data` — get structured data
 
-### Navigation
-1. Always use `playwright_browser_navigate` for initial page loads
-2. After navigation, use `playwright_browser_snapshot` to get the page state
-3. For SPAs, wait 1-2 seconds after navigation before reading the page
+## Authentication
+- Use `web_login` to navigate to a login page and discover form fields
+- The tool returns a snapshot — identify username/password fields from the snapshot
+- Use `playwright_browser_type` to fill each field, then submit
+- Verify with `web_check_auth_state` after login
 
-### Element Interaction
-1. Use `playwright_browser_snapshot` to discover element references
-2. Reference elements by their accessibility snapshot ref IDs
-3. Prefer `playwright_browser_click` for buttons and links
-4. Use `playwright_browser_type` for text inputs
-5. Use `playwright_browser_select_option` for dropdowns
+## Navigation
+- **`web_navigate_and_wait`** — Primary navigation tool. Combines URL navigation with SPA-aware content waiting. Pass `wait_for_text` for content-based waiting.
+- **`web_wait_for_ready`** — Wait for current page to finish loading after any action. Use `indicator_text` to wait for specific content.
+- **`web_discover_navigation`** — Identify all navigation elements on a page (menus, sidebars, tabs, breadcrumbs, pagination).
 
-### Data Extraction
-1. `playwright_browser_snapshot` returns the accessibility tree - best for text data
-2. `playwright_browser_screenshot` returns a visual capture - best for charts/layouts
-3. Combine both for comprehensive data extraction
+## Data Extraction
+- **`web_extract_table`** — Extract tabular data in rows/csv/markdown format. Reports pagination if present.
+- **`web_extract_page_data`** — Extract targeted content from any page. Use `include_screenshot=True` for visual data (charts, graphs).
+- **`web_extract_links`** — Extract all links as {text, href} objects. Use `filter_text` to narrow results.
 
-### Error Recovery
-- If an element is not found, re-take a snapshot (the page may have changed)
-- If navigation fails, check the URL and try again
-- Use `playwright_browser_console_messages` to check for JavaScript errors
+## Form Filling
+- **`web_discover_form`** — Identify all form fields with their labels, types, refs, and options
+- **`web_fill_form`** — Batch-fill fields using ref+value+type from discovery. Handles text, select, checkbox, and radio inputs.
+- Workflow: discover form → review fields → fill form → submit
 
-### Performance
-- Minimize screenshots (they are expensive) - prefer snapshots for text data
+## Element Interaction (Playwright Primitives)
+- Use `playwright_browser_snapshot` to discover element ref IDs
+- `playwright_browser_click` for buttons and links
+- `playwright_browser_type` for text inputs
+- `playwright_browser_select_option` for dropdowns
+- `playwright_browser_press_key` for keyboard actions
+
+## Error Recovery
+- If an element is not found, re-snapshot (page may have changed)
+- If navigation fails, check URL and retry
+- Use `playwright_browser_console_messages` for JavaScript errors
+- `web_fill_form` continues on individual field errors and reports them
+
+## Performance Tips
+- Prefer snapshots over screenshots (cheaper, more structured)
+- Use `web_navigate_and_wait` instead of separate navigate + wait calls
+- Use `web_fill_form` for batch input instead of individual type calls
 - Batch related actions together
-- Use `playwright_browser_wait` when timing is critical
 
 ## Anti-Patterns
 - Don't take screenshots when a snapshot would suffice
-- Don't click elements without first taking a snapshot to find their refs
-- Don't assume page state - always verify with a fresh snapshot after actions
+- Don't click elements without first snapshotting to find refs
+- Don't assume page state — always verify with a fresh snapshot
+- Don't navigate and immediately snapshot — use `web_navigate_and_wait` or `web_wait_for_ready`

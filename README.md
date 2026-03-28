@@ -1,83 +1,119 @@
-# Fourth Playwright MCP Server
+# Playwright Web MCP
 
-Remote MCP server combining FastMCP v3 (Python) orchestration with @playwright/mcp (Node.js) browser automation. Designed for deployment to Railway as a Claude.ai Custom Connector.
+General-purpose web automation MCP server built on [FastMCP v3](https://github.com/jlowin/fastmcp) and [@playwright/mcp](https://github.com/anthropics/playwright-mcp).
+
+Gives Claude browser automation capabilities over HTTP — navigate websites, fill forms, extract data, and interact with any web application.
 
 ## Architecture
 
 ```
-FastMCP v3 (Python) ─── SSE/Streamable HTTP ──→ Claude.ai
-       │
-       └── subprocess (stdio) ──→ @playwright/mcp (Node.js)
+Claude.ai / Cowork Plugin
+    │  Streamable HTTP
+    ▼
+FastMCP v3 (Python)
+    │
+    ├── 70+ playwright_* tools (proxied via subprocess)
+    ├── 10 web_* orchestration tools
+    ├── 1 browser_wait_for wrapper
+    └── Skills (MCP resources)
 ```
 
-- **FastMCP v3**: OAuth 2.1 proxy, Skills system, custom tools, HTTP transport
-- **@playwright/mcp**: 70+ browser automation tools via stdio subprocess
-- **Custom tools**: Fourth-specific authentication, navigation, data extraction
+## Tools
 
-## Setup
+### Web Automation (custom orchestration)
 
-### Prerequisites
+| Tool | Purpose |
+|------|---------|
+| `web_login` | Navigate to login page, discover form fields |
+| `web_check_auth_state` | Check if user is authenticated |
+| `web_navigate_and_wait` | Navigate + SPA-aware content waiting |
+| `web_wait_for_ready` | Wait for page content after any action |
+| `web_discover_navigation` | Identify menus, tabs, pagination |
+| `web_extract_table` | Extract table data (rows/csv/markdown) |
+| `web_extract_page_data` | Extract targeted page content |
+| `web_extract_links` | Extract links with optional filter |
+| `web_discover_form` | Identify form fields, types, refs |
+| `web_fill_form` | Batch-fill form fields |
 
-- Python 3.11+
-- Node.js 18+
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
+### Playwright Primitives (proxied)
 
-### Install
+All 70+ `@playwright/mcp` tools are available with a `playwright_` prefix:
+`playwright_browser_navigate`, `playwright_browser_snapshot`, `playwright_browser_click`, `playwright_browser_type`, `playwright_browser_take_screenshot`, and more.
+
+### Utility
+
+| Tool | Purpose |
+|------|---------|
+| `browser_wait_for` | Type-safe wrapper for `playwright_browser_wait_for` |
+
+## Deployment
+
+### Railway (production)
+
+The server deploys to Railway via Dockerfile. Set these environment variables:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PORT` | No | Set by Railway | HTTP port |
+| `HOST` | No | `0.0.0.0` | Bind address |
+| `OAUTH_CLIENT_ID` | No | — | OAuth client ID (omit to disable auth) |
+| `OAUTH_CLIENT_SECRET` | No | — | OAuth client secret |
+| `OAUTH_AUTHORIZATION_ENDPOINT` | No | Google OIDC | Authorization endpoint |
+| `OAUTH_TOKEN_ENDPOINT` | No | Google OIDC | Token endpoint |
+| `BASE_URL` | No | `http://127.0.0.1:8000` | Server public URL (for OAuth redirects) |
+
+### Local development
 
 ```bash
-# Python dependencies
+# Install dependencies
 uv sync
 
-# Node dependencies (installs @playwright/mcp + Chromium)
-npm install
-```
-
-### Run locally
-
-```bash
+# Start server
 uv run python src/server.py
-# Server starts on http://localhost:8000
-# Health check: curl http://localhost:8000/health
-# MCP endpoint: http://localhost:8000/mcp
+# → http://localhost:8000/health
 ```
 
-### List tools
+### Docker
 
 ```bash
-uv run fastmcp list src/server.py
+docker build -t playwright-web-mcp .
+docker run -p 8000:8000 playwright-web-mcp
 ```
 
-## Deployment (Railway)
-
-1. Connect this repo to Railway
-2. Railway auto-detects the Dockerfile
-3. Set environment variables (see `.env.example`)
-4. Railway sets `PORT` automatically
+## Usage
 
 ### Claude.ai Custom Connector
 
-1. Go to Claude.ai → Settings → Connectors → Add Custom
-2. SSE URL: `https://<app>.railway.app/mcp`
-3. Configure OAuth with your Client ID/Secret
+Add as a Custom Connector in Claude.ai Project settings:
+- URL: `https://<your-app>.railway.app/mcp`
+- Auth: OAuth 2.1 (if configured)
 
-## Custom Fourth Tools
+### Cowork Plugin
 
-| Tool | Description |
-|------|-------------|
-| `fourth_login` | Automated login with credentials/SSO |
-| `fourth_navigate_module` | Navigate to Fourth module by name |
-| `fourth_extract_table` | Extract structured data from tables |
-| `fourth_extract_report` | Generate structured report from page |
-| `fourth_wait_for_load` | Smart wait for Fourth SPA |
-| `fourth_get_user_context` | Get current user/permissions/restaurant |
+Reference the MCP endpoint in your plugin's `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "web": {
+      "url": "https://<your-app>.railway.app/mcp"
+    }
+  }
+}
+```
 
-## Skills
+## Development
 
-Skills are exposed as MCP resources from the `skills/` directory:
+```bash
+# Run tests
+uv run pytest
 
-- `browser-automation` - General browser automation patterns
-- `fourth-workflows` - Fourth-specific workflow instructions
+# Lint
+uv run ruff check src/
 
-## Environment Variables
+# Type check
+uv run ruff format --check src/
+```
 
-See `.env.example` for all configuration options.
+## License
+
+Internal use — Fourth Enterprises.

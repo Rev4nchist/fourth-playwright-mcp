@@ -1,96 +1,87 @@
-"""Fourth authentication tools."""
+"""Web authentication tools."""
 
 from fastmcp import Context, FastMCP
 
 
 def register_auth_tools(mcp: FastMCP) -> None:
-    """Register Fourth authentication tools on the MCP server."""
+    """Register web authentication tools on the MCP server."""
 
     @mcp.tool
-    async def fourth_login(
+    async def web_login(
         url: str,
         username: str,
         password: str,
         ctx: Context,
-        sso_provider: str | None = None,
+        submit_method: str = "click",
     ) -> dict:
-        """Log into Fourth application.
+        """Navigate to a login page and capture its form for credential entry.
 
-        Automates the Fourth login flow including SSO handling.
-        Uses the mounted Playwright tools to perform browser-based authentication.
+        Navigates to the given URL and takes a snapshot of the page so that
+        the caller can identify form fields and complete the login flow.
+        This tool does NOT fill in fields itself -- it returns instructions
+        for the caller to do so using the appropriate Playwright tools.
 
         Args:
-            url: Fourth application URL (e.g., https://app.fourth.com)
-            username: Login username or email
-            password: Login password
-            sso_provider: Optional SSO provider name (e.g., 'azure', 'okta')
+            url: Login page URL (any site)
+            username: Username or email to enter
+            password: Password to enter
+            submit_method: How to submit the form -- "click" or "enter"
         """
-        await ctx.report_progress(progress=0.1, total=1.0, message="Navigating to login page")
+        await ctx.report_progress(
+            progress=0.2, total=1.0, message="Navigating to login page"
+        )
 
-        # Navigate to the login URL
         await ctx.fastmcp.call_tool("playwright_browser_navigate", {"url": url})
 
-        await ctx.report_progress(progress=0.3, total=1.0, message="Entering credentials")
+        await ctx.report_progress(
+            progress=0.6, total=1.0, message="Capturing login form"
+        )
 
-        if sso_provider:
-            # Click SSO button first
-            await ctx.fastmcp.call_tool(
-                "playwright_browser_click",
-                {"element": f"SSO login button for {sso_provider}", "ref": "sso-button"},
+        snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
+
+        if submit_method == "click":
+            submit_instruction = (
+                "click the submit/login button using playwright_browser_click"
+            )
+        else:
+            submit_instruction = (
+                "press Enter using playwright_browser_press_key with key Enter"
             )
 
-        # Fill username
-        await ctx.fastmcp.call_tool(
-            "playwright_browser_type",
-            {"element": "username field", "ref": "username", "text": username},
+        instruction = (
+            f"From the snapshot, identify the username/email field and password "
+            f"field by their labels or placeholders. Use playwright_browser_type "
+            f"to fill '{username}' into the username field and '{password}' into "
+            f"the password field. Then {submit_instruction}. After submitting, "
+            f"use playwright_browser_snapshot to verify login succeeded."
         )
-
-        # Fill password
-        await ctx.fastmcp.call_tool(
-            "playwright_browser_type",
-            {"element": "password field", "ref": "password", "text": password},
-        )
-
-        await ctx.report_progress(progress=0.6, total=1.0, message="Submitting login")
-
-        # Submit
-        await ctx.fastmcp.call_tool(
-            "playwright_browser_click",
-            {"element": "login submit button", "ref": "submit"},
-        )
-
-        await ctx.report_progress(progress=0.9, total=1.0, message="Verifying login success")
-
-        # Take snapshot to verify login succeeded
-        result = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
         return {
-            "status": "logged_in",
             "url": url,
-            "sso": sso_provider or "direct",
-            "snapshot": result,
+            "username": username,
+            "submit_method": submit_method,
+            "snapshot": snapshot,
+            "instruction": instruction,
         }
 
     @mcp.tool
-    async def fourth_get_user_context(ctx: Context) -> dict:
-        """Get current Fourth user context.
+    async def web_check_auth_state(ctx: Context) -> dict:
+        """Check the current authentication state of the active page.
 
-        Returns the current user, their permissions, and active restaurant/location
-        from the Fourth application UI. Requires an active browser session
-        (call fourth_login first).
+        Takes a snapshot of the current page and returns it along with
+        instructions for analyzing whether the user is logged in or out.
         """
-        try:
-            snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
-        except Exception as e:
-            return {
-                "error": "No active browser session. Call fourth_login first to authenticate.",
-                "detail": str(e),
-            }
+        snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
         return {
             "snapshot": snapshot,
             "instruction": (
-                "Parse the snapshot to extract: current user name, role, "
-                "active restaurant/location, and any visible permissions or menu items."
+                "Analyze the page snapshot to determine authentication state. "
+                "Look for indicators of being logged in (profile menus, user "
+                "name displays, logout/sign-out buttons, account links, "
+                "dashboard content) or indicators of being logged out (login "
+                "forms, sign-in buttons, registration prompts). Report whether "
+                "the user appears to be authenticated and any visible user "
+                "identity information."
             ),
         }
