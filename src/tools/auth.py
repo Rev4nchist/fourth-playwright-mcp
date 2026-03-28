@@ -97,7 +97,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
 }}"""
 
         filled = await ctx.fastmcp.call_tool(
-            "playwright_browser_evaluate", {"expression": fill_js}
+            "playwright_browser_evaluate", {"function": fill_js}
         )
 
         # Submit the form

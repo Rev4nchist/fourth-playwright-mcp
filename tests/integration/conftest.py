@@ -85,7 +85,7 @@ def _make_dispatch(tool_calls: list[dict], *, fail_refs: set[str] | None = None)
             return "Key pressed"
         if "evaluate" in tool_name:
             # Return plausible DOM extraction results based on the expression
-            expr = args.get("expression", "")
+            expr = args.get("function", args.get("expression", ""))
             if "querySelectorAll('a[href]')" in expr:
                 return [
                     {"text": "Home", "href": "https://example.com/"},

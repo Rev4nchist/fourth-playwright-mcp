@@ -24,7 +24,7 @@ def register_scripting_tools(mcp: FastMCP) -> None:
         """
         try:
             result = await ctx.fastmcp.call_tool(
-                "playwright_browser_evaluate", {"expression": script}
+                "playwright_browser_evaluate", {"function": script}
             )
             return {"success": True, "result": result, "error": None}
         except Exception as e:
@@ -62,7 +62,7 @@ def register_scripting_tools(mcp: FastMCP) -> None:
 
         try:
             result = await ctx.fastmcp.call_tool(
-                "playwright_browser_evaluate", {"expression": extract_js}
+                "playwright_browser_evaluate", {"function": extract_js}
             )
             result_dict = result if isinstance(result, dict) else {}
             return {

@@ -75,7 +75,7 @@ class TestWebPerformanceSuccess:
         await tools["web_performance"](ctx=ctx)
 
         call_args = ctx.fastmcp.call_tool.call_args
-        assert "expression" in call_args[0][1]
+        assert "function" in call_args[0][1]
 
     @pytest.mark.asyncio
     async def test_expression_is_iife(self, tools, ctx):
@@ -85,7 +85,7 @@ class TestWebPerformanceSuccess:
         await tools["web_performance"](ctx=ctx)
 
         call_args = ctx.fastmcp.call_tool.call_args
-        expression = call_args[0][1]["expression"]
+        expression = call_args[0][1]["function"]
         stripped = expression.strip()
         assert stripped.startswith("(") or stripped.startswith("\n(")
 
@@ -155,7 +155,7 @@ class TestWebPerformanceJavaScript:
 
         await tools["web_performance"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "getEntriesByType" in expression
         assert "'navigation'" in expression
 
@@ -165,7 +165,7 @@ class TestWebPerformanceJavaScript:
 
         await tools["web_performance"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "'resource'" in expression
 
     @pytest.mark.asyncio
@@ -174,7 +174,7 @@ class TestWebPerformanceJavaScript:
 
         await tools["web_performance"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "largest-contentful-paint" in expression
 
     @pytest.mark.asyncio
@@ -183,7 +183,7 @@ class TestWebPerformanceJavaScript:
 
         await tools["web_performance"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "layout-shift" in expression
 
     @pytest.mark.asyncio
@@ -192,7 +192,7 @@ class TestWebPerformanceJavaScript:
 
         await tools["web_performance"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "first-contentful-paint" in expression
 
 
@@ -230,7 +230,7 @@ class TestWebAccessibilityAuditSuccess:
         await tools["web_accessibility_audit"](ctx=ctx)
 
         call_args = ctx.fastmcp.call_tool.call_args
-        assert "expression" in call_args[0][1]
+        assert "function" in call_args[0][1]
 
     @pytest.mark.asyncio
     async def test_expression_is_iife(self, tools, ctx):
@@ -238,7 +238,7 @@ class TestWebAccessibilityAuditSuccess:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         stripped = expression.strip()
         assert stripped.startswith("(") or stripped.startswith("\n(")
 
@@ -308,7 +308,7 @@ class TestWebAccessibilityAuditJavaScript:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "img" in expression.lower()
         assert "alt" in expression
 
@@ -318,7 +318,7 @@ class TestWebAccessibilityAuditJavaScript:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "aria-label" in expression
 
     @pytest.mark.asyncio
@@ -327,7 +327,7 @@ class TestWebAccessibilityAuditJavaScript:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "h1" in expression
         assert "heading" in expression.lower()
 
@@ -337,7 +337,7 @@ class TestWebAccessibilityAuditJavaScript:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "button" in expression.lower()
         assert "accessible" in expression.lower() or "textContent" in expression
 
@@ -347,7 +347,7 @@ class TestWebAccessibilityAuditJavaScript:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "lang" in expression
 
     @pytest.mark.asyncio
@@ -356,5 +356,5 @@ class TestWebAccessibilityAuditJavaScript:
 
         await tools["web_accessibility_audit"](ctx=ctx)
 
-        expression = ctx.fastmcp.call_tool.call_args[0][1]["expression"]
+        expression = ctx.fastmcp.call_tool.call_args[0][1]["function"]
         assert "role" in expression

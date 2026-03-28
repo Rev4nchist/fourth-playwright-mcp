@@ -150,7 +150,7 @@ def register_navigation_tools(mcp: FastMCP) -> None:
         try:
             raw = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": nav_extract_js},
+                {"function": nav_extract_js},
             )
             if isinstance(raw, dict):
                 extracted = raw

@@ -5,6 +5,7 @@
 _No current goal. Next planned item will be promoted on next planning session._
 
 ## Completed
+- [x] [fix] parse accessibility tree for form fields when DOM extraction fails (2026-03-28) `8a46e34`
 - [x] [fix] resolve 4 issues from Donna's retest (commit 4fc1e83) (2026-03-28) `a294ac7`
 - [x] [fix] resolve 3 live test failures from Donna's validation (2026-03-28) `4fc1e83`
 - [x] [feat] DOM extraction upgrades, perf/a11y tools, bug fixes (2026-03-28) `c77ceb0`

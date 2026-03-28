@@ -42,7 +42,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
     });
 }"""
             tables = await ctx.fastmcp.call_tool(
-                "playwright_browser_evaluate", {"expression": table_js}
+                "playwright_browser_evaluate", {"function": table_js}
             )
 
             return {
@@ -136,7 +136,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
             try:
                 extracted = await ctx.fastmcp.call_tool(
                     "playwright_browser_evaluate",
-                    {"expression": page_extract_js},
+                    {"function": page_extract_js},
                 )
 
                 result: dict = {
@@ -216,7 +216,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
 
         try:
             links = await ctx.fastmcp.call_tool(
-                "playwright_browser_evaluate", {"expression": links_js}
+                "playwright_browser_evaluate", {"function": links_js}
             )
 
             if filter_text:

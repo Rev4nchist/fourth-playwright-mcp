@@ -161,22 +161,26 @@ def register_form_tools(mcp: FastMCP) -> None:
         try:
             extracted_fields = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": form_extract_js},
+                {"function": form_extract_js},
             )
         except Exception:
             pass  # Fall back to snapshot parsing
 
         # If DOM extraction found nothing, parse the accessibility snapshot
         # for form fields (textbox, combobox, spinbutton, listbox roles)
-        if not extracted_fields and snapshot and isinstance(snapshot, str):
+        snapshot_str = str(snapshot) if snapshot else ""
+        if not extracted_fields and snapshot_str:
             import re
 
-            # Match patterns like: textbox "Label" [ref=e12]
-            # or: combobox "Label" [ref=e15]
+            # Match patterns like:
+            #   textbox "Label" [ref=e12]
+            #   - textbox "Label" [ref=e12]
+            #   combobox "Label" [ref=e15]
+            # Also handle: textbox "Label" value="current" [ref=e12]
             pattern = re.compile(
                 r"(textbox|combobox|spinbutton|listbox|checkbox|radio)"
                 r'\s+"([^"]*)"'
-                r".*?\[ref=(e\d+)\]",
+                r"[^\[]*\[ref=(e?\d+)\]",
             )
             for match in pattern.finditer(str(snapshot)):
                 role, label, ref = match.groups()

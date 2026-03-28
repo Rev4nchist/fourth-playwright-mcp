@@ -141,7 +141,7 @@ def register_search_tools(mcp: FastMCP) -> None:
         try:
             extracted_results = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": search_extract_js},
+                {"function": search_extract_js},
             )
         except Exception:
             pass  # Fall back to snapshot + instruction

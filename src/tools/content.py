@@ -156,7 +156,7 @@ def register_content_tools(mcp: FastMCP) -> None:
         try:
             article = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": ARTICLE_EXTRACT_JS},
+                {"function": ARTICLE_EXTRACT_JS},
             )
         except Exception as e:
             article = {"error": str(e), "title": None, "content": None}
@@ -170,7 +170,7 @@ def register_content_tools(mcp: FastMCP) -> None:
             try:
                 metadata = await ctx.fastmcp.call_tool(
                     "playwright_browser_evaluate",
-                    {"expression": METADATA_EXTRACT_JS},
+                    {"function": METADATA_EXTRACT_JS},
                 )
             except Exception as e:
                 metadata = {"error": str(e)}
@@ -188,7 +188,7 @@ def register_content_tools(mcp: FastMCP) -> None:
         try:
             metadata = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": METADATA_EXTRACT_JS},
+                {"function": METADATA_EXTRACT_JS},
             )
         except Exception as e:
             metadata = {"error": str(e)}

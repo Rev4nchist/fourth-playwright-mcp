@@ -230,7 +230,7 @@ def register_performance_tools(mcp: FastMCP) -> None:
         try:
             metrics = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": PERFORMANCE_JS},
+                {"function": PERFORMANCE_JS},
             )
             if not include_resource_details and isinstance(metrics, dict):
                 metrics.pop("resources_detail", None)
@@ -259,7 +259,7 @@ def register_performance_tools(mcp: FastMCP) -> None:
         try:
             audit = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
-                {"expression": ACCESSIBILITY_JS},
+                {"function": ACCESSIBILITY_JS},
             )
             if severity_filter != "all" and isinstance(audit, dict):
                 if "issues" in audit:

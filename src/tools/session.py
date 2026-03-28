@@ -58,7 +58,7 @@ def register_session_tools(mcp: FastMCP) -> None:
 
         try:
             session_data = await ctx.fastmcp.call_tool(
-                "playwright_browser_evaluate", {"expression": SAVE_SESSION_JS}
+                "playwright_browser_evaluate", {"function": SAVE_SESSION_JS}
             )
         except Exception as e:
             return {"saved": False, "session_name": session_name, "error": str(e)}
@@ -114,7 +114,7 @@ def register_session_tools(mcp: FastMCP) -> None:
             cookie_js = f"() => {{ document.cookie = {repr(cookies)}; }}"
             try:
                 await ctx.fastmcp.call_tool(
-                    "playwright_browser_evaluate", {"expression": cookie_js}
+                    "playwright_browser_evaluate", {"function": cookie_js}
                 )
             except Exception:
                 pass  # Cookie injection can fail on some domains
@@ -136,7 +136,7 @@ def register_session_tools(mcp: FastMCP) -> None:
             )
             try:
                 await ctx.fastmcp.call_tool(
-                    "playwright_browser_evaluate", {"expression": ls_js}
+                    "playwright_browser_evaluate", {"function": ls_js}
                 )
             except Exception:
                 pass

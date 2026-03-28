@@ -120,7 +120,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -137,7 +137,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -153,7 +153,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -169,7 +169,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -186,7 +186,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -203,7 +203,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -220,7 +220,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -238,7 +238,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
@@ -254,7 +254,7 @@ class TestWebDiscoverFormJsContent:
         async def side_effect(tool_name, args):
             nonlocal captured_js
             if tool_name == "playwright_browser_evaluate":
-                captured_js = args.get("expression", "")
+                captured_js = args.get("function", args.get("expression", ""))
                 return []
             return "[snapshot]"
 
