@@ -213,10 +213,29 @@ def register_content_tools(mcp: FastMCP) -> None:
             progress=0.5, total=1.0, message="Generating PDF"
         )
 
-        try:
-            result = await ctx.fastmcp.call_tool(
-                "playwright_browser_pdf_save", {"fileName": filename}
-            )
-            return {"saved": True, "filename": filename, "result": result}
-        except Exception as e:
-            return {"saved": False, "filename": filename, "error": str(e)}
+        pdf_tool_names = [
+            "playwright_browser_pdf_save",
+            "playwright_browser_save_as_pdf",
+            "playwright_browser_save_pdf",
+        ]
+
+        for tool_name in pdf_tool_names:
+            try:
+                result = await ctx.fastmcp.call_tool(
+                    tool_name, {"fileName": filename}
+                )
+                return {"saved": True, "filename": filename, "result": result}
+            except Exception:
+                continue
+
+        return {
+            "saved": False,
+            "filename": filename,
+            "error": (
+                "PDF capability is not available. The Playwright subprocess "
+                "needs --caps=pdf enabled, which currently restricts the full "
+                "tool set. Alternatives: use playwright_browser_take_screenshot "
+                "for visual capture, or use web_execute_js with window.print() "
+                "for browser-native printing."
+            ),
+        }

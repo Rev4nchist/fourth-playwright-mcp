@@ -5,6 +5,7 @@
 _No current goal. Next planned item will be promoted on next planning session._
 
 ## Completed
+- [x] [fix] resolve 3 live test failures from Donna's validation (2026-03-28) `4fc1e83`
 - [x] [feat] DOM extraction upgrades, perf/a11y tools, bug fixes (2026-03-28) `c77ceb0`
 - [x] [fix] install chrome channel in Dockerfile (not just chromium) (2026-03-28) `8bc9c33`
 - [x] [feat] fix subprocess proxy + add search, content, session, scripting tools (2026-03-28) `ff6a79e`

@@ -101,9 +101,12 @@ def register_form_tools(mcp: FastMCP) -> None:
     }
 
     const fields = [];
-    const inputs = document.querySelectorAll('input, select, textarea');
+    const inputs = document.querySelectorAll(
+        'input:not([type="hidden"]), select, textarea, ' +
+        '[role="textbox"], [role="combobox"], [role="listbox"], ' +
+        '[role="spinbutton"], [contenteditable="true"]'
+    );
     inputs.forEach(el => {
-        if (el.type === 'hidden') return;
         const style = window.getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden') return;
         const field = {
@@ -128,6 +131,29 @@ def register_form_tools(mcp: FastMCP) -> None:
         }
         fields.push(field);
     });
+    // Fallback: if no standard inputs found, look for class-based patterns
+    if (fields.length === 0) {
+        document.querySelectorAll(
+            '[class*="input"]:not(form), [class*="form-control"], ' +
+            '[class*="field"]:not(fieldset):not(form), ' +
+            '[data-testid*="input"], [data-testid*="field"]'
+        ).forEach(el => {
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') return;
+            if (el.children.length > 3) return;
+            if (['FORM', 'FIELDSET', 'DIV'].includes(el.tagName) && el.children.length > 1) return;
+            fields.push({
+                tag: el.tagName.toLowerCase(),
+                type: el.getAttribute('type') || el.getAttribute('role') || 'unknown',
+                name: el.getAttribute('name') || null,
+                id: el.id || null,
+                label: getFieldLabel(el),
+                value: el.value || el.textContent?.trim()?.substring(0, 100) || '',
+                required: el.hasAttribute('required') || el.getAttribute('aria-required') === 'true',
+                disabled: el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true',
+            });
+        });
+    }
     return fields;
 }"""
 

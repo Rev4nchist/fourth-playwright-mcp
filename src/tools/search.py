@@ -12,7 +12,7 @@ def register_search_tools(mcp: FastMCP) -> None:
     async def web_search(
         query: str,
         ctx: Context,
-        engine: str = "duckduckgo",
+        engine: str = "bing",
         num_results: int = 5,
         site_filter: str | None = None,
         date_filter: str | None = None,

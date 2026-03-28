@@ -197,7 +197,7 @@ class TestWebSearchEngines:
 
         ctx = make_ctx(call_tool_side_effect=side_effect)
         result = await self.tool(query="test", ctx=ctx)
-        assert result["engine"] == "duckduckgo"
+        assert result["engine"] == "bing"
 
     @pytest.mark.asyncio
     async def test_duckduckgo_uses_html_lite(self):
