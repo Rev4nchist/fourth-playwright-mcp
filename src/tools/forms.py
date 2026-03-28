@@ -164,12 +164,57 @@ def register_form_tools(mcp: FastMCP) -> None:
                 {"expression": form_extract_js},
             )
         except Exception:
-            pass  # Fall back to snapshot + instruction
+            pass  # Fall back to snapshot parsing
+
+        # If DOM extraction found nothing, parse the accessibility snapshot
+        # for form fields (textbox, combobox, spinbutton, listbox roles)
+        if not extracted_fields and snapshot and isinstance(snapshot, str):
+            import re
+
+            # Match patterns like: textbox "Label" [ref=e12]
+            # or: combobox "Label" [ref=e15]
+            pattern = re.compile(
+                r"(textbox|combobox|spinbutton|listbox|checkbox|radio)"
+                r'\s+"([^"]*)"'
+                r".*?\[ref=(e\d+)\]",
+            )
+            for match in pattern.finditer(str(snapshot)):
+                role, label, ref = match.groups()
+                type_map = {
+                    "textbox": "text",
+                    "combobox": "select",
+                    "spinbutton": "number",
+                    "listbox": "select",
+                    "checkbox": "checkbox",
+                    "radio": "radio",
+                }
+                extracted_fields.append(
+                    {
+                        "tag": "input",
+                        "type": type_map.get(role, role),
+                        "name": None,
+                        "id": None,
+                        "label": label,
+                        "value": "",
+                        "required": False,
+                        "disabled": False,
+                        "ref": ref,
+                        "source": "accessibility_tree",
+                    }
+                )
 
         return {
             "form_description": form_description,
-            "fields": extracted_fields,
-            "fields_count": len(extracted_fields),
+            "fields": (
+                extracted_fields
+                if isinstance(extracted_fields, list)
+                else []
+            ),
+            "fields_count": (
+                len(extracted_fields)
+                if isinstance(extracted_fields, list)
+                else 0
+            ),
             "snapshot": snapshot,
             "instruction": (
                 f"Identify all form fields for the '{form_description}' in the page snapshot. "
