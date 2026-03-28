@@ -26,22 +26,92 @@ def register_form_tools(mcp: FastMCP) -> None:
 
         snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
-        # DOM extraction of form fields
+        # DOM extraction of form fields with comprehensive label resolution.
+        # Follows W3C Accessible Name priority order, plus form-builder
+        # heuristics for HubSpot, Marketo, MUI, Bootstrap, Gravity Forms.
         form_extract_js = """() => {
+    function getFieldLabel(el) {
+        // 1. aria-labelledby
+        const labelledBy = el.getAttribute('aria-labelledby');
+        if (labelledBy) {
+            const label = labelledBy.split(' ')
+                .map(id => document.getElementById(id)?.textContent?.trim())
+                .filter(Boolean).join(' ');
+            if (label) return label;
+        }
+        // 2. aria-label
+        const ariaLabel = el.getAttribute('aria-label');
+        if (ariaLabel) return ariaLabel;
+        // 3. Explicit <label for="id">
+        if (el.labels && el.labels.length > 0) {
+            return el.labels[0].textContent.trim();
+        }
+        // 4. Enclosing <label> (implicit association)
+        const enclosingLabel = el.closest('label');
+        if (enclosingLabel) {
+            const clone = enclosingLabel.cloneNode(true);
+            clone.querySelectorAll('input, select, textarea').forEach(c => c.remove());
+            const text = clone.textContent.trim();
+            if (text) return text;
+        }
+        // 5. Fieldset legend
+        const fieldset = el.closest('fieldset');
+        if (fieldset) {
+            const legend = fieldset.querySelector('legend');
+            if (legend) return legend.textContent.trim();
+        }
+        // 6. title attribute
+        if (el.title) return el.title;
+        // 7. placeholder
+        if (el.placeholder) return el.placeholder;
+        // 8. Form-builder heuristics (HubSpot, Marketo, MUI, Bootstrap, Gravity Forms, generic)
+        const builderSelectors = [
+            '.hs-form-field', '.gfield', '.mktoFieldWrap',
+            '.MuiFormControl-root', '.form-group', '.form-field',
+            '.field', '.input-group', '[class*="field"]', '[class*="form-row"]'
+        ];
+        for (const sel of builderSelectors) {
+            const wrapper = el.closest(sel);
+            if (wrapper) {
+                const wrapperLabel = wrapper.querySelector(
+                    'label, .hs-form-label, .gfield_label, .MuiFormLabel-root, .form-label, legend'
+                );
+                if (wrapperLabel) return wrapperLabel.textContent.trim();
+                const heading = wrapper.querySelector('h1, h2, h3, h4, h5, h6, strong, b');
+                if (heading) return heading.textContent.trim();
+            }
+        }
+        // 9. Preceding sibling text
+        const prevSibling = el.previousElementSibling;
+        if (prevSibling && ['LABEL', 'SPAN', 'DIV', 'P'].includes(prevSibling.tagName)) {
+            const text = prevSibling.textContent.trim();
+            if (text && text.length < 100) return text;
+        }
+        // 10. Parent's direct text nodes (wrapper-div pattern)
+        const parent = el.parentElement;
+        if (parent) {
+            const textNodes = [...parent.childNodes]
+                .filter(n => n.nodeType === 3)
+                .map(n => n.textContent.trim())
+                .filter(Boolean);
+            if (textNodes.length > 0 && textNodes[0].length < 100) return textNodes[0];
+        }
+        // 11. Last resort: name or id
+        return el.name || el.id || '';
+    }
+
     const fields = [];
     const inputs = document.querySelectorAll('input, select, textarea');
     inputs.forEach(el => {
         if (el.type === 'hidden') return;
-        const label = el.labels?.[0]?.textContent?.trim()
-            || el.getAttribute('aria-label')
-            || el.getAttribute('placeholder')
-            || el.name || el.id || '';
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return;
         const field = {
             tag: el.tagName.toLowerCase(),
             type: el.type || el.tagName.toLowerCase(),
             name: el.name || null,
             id: el.id || null,
-            label: label,
+            label: getFieldLabel(el),
             value: el.value || '',
             required: el.required,
             disabled: el.disabled,

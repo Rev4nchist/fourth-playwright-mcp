@@ -101,6 +101,14 @@ def _make_dispatch(tool_calls: list[dict], *, fail_refs: set[str] | None = None)
                         "row_count": 2,
                     }
                 ]
+            # Form field extraction JS
+            if "getFieldLabel" in expr or "querySelectorAll('input, select, textarea')" in expr:
+                return [
+                    {"tag": "input", "type": "text", "name": "username", "id": "user",
+                     "label": "Username", "value": "", "required": True, "disabled": False},
+                    {"tag": "input", "type": "password", "name": "password", "id": "pass",
+                     "label": "Password", "value": "", "required": True, "disabled": False},
+                ]
             # Generic fill result for login auto-fill
             return {"username": True, "password": True}
         return "OK"

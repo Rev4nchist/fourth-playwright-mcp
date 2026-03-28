@@ -109,6 +109,162 @@ class TestWebDiscoverForm:
             assert keyword in instruction, f"Instruction missing '{keyword}'"
 
 
+class TestWebDiscoverFormJsContent:
+    """Tests that the form extraction JS contains expected label resolution logic."""
+
+    @pytest.mark.asyncio
+    async def test_js_contains_getFieldLabel(self, tools, ctx):
+        """The JS expression should define a getFieldLabel helper."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert captured_js is not None
+        assert "getFieldLabel" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_aria_labelledby(self, tools, ctx):
+        """The JS should check aria-labelledby (W3C priority 1)."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "aria-labelledby" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_aria_label(self, tools, ctx):
+        """The JS should check aria-label (W3C priority 2)."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "aria-label" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_enclosing_label(self, tools, ctx):
+        """The JS should check for enclosing <label> (implicit association)."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "closest" in captured_js
+        assert "'label'" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_fieldset_legend(self, tools, ctx):
+        """The JS should check for fieldset legend."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "fieldset" in captured_js
+        assert "legend" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_form_builder_wrappers(self, tools, ctx):
+        """The JS should handle HubSpot, Marketo, MUI, Bootstrap wrappers."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        for selector in ["hs-form-field", "gfield", "mktoFieldWrap", "MuiFormControl"]:
+            assert selector in captured_js, f"Missing form builder selector '{selector}'"
+
+    @pytest.mark.asyncio
+    async def test_js_filters_hidden_fields(self, tools, ctx):
+        """The JS should skip display:none and visibility:hidden fields."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "getComputedStyle" in captured_js
+        assert "display" in captured_js
+        assert "visibility" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_preceding_sibling(self, tools, ctx):
+        """The JS should check preceding sibling text as a label fallback."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "previousElementSibling" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_js_checks_parent_text_nodes(self, tools, ctx):
+        """The JS should check parent's direct text nodes (wrapper-div pattern)."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        assert "parentElement" in captured_js
+        assert "childNodes" in captured_js
+        assert "TEXT_NODE" in captured_js or "nodeType" in captured_js
+
+
 class TestWebDiscoverFormDomExtraction:
     """Tests for DOM extraction in web_discover_form."""
 

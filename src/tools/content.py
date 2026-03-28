@@ -202,7 +202,9 @@ def register_content_tools(mcp: FastMCP) -> None:
     ) -> dict:
         """Save the current page as a PDF file.
 
-        Requires the PDF capability to be enabled on the Playwright subprocess.
+        Note: PDF capability requires --caps=pdf on the Playwright subprocess, which is
+        currently disabled to preserve the full proxied tool set. This tool may return
+        an error until PDF capability is re-enabled in a future update.
 
         Args:
             filename: Output filename for the PDF

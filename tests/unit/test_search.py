@@ -179,6 +179,189 @@ class TestWebSearchDomExtraction:
         assert "url" in result
 
 
+class TestWebSearchEngines:
+    """Tests for multi-engine support: google, duckduckgo, bing."""
+
+    def setup_method(self):
+        self.mcp = make_mcp()
+        register_search_tools(self.mcp)
+        self.tool = self.mcp._registered_tools["web_search"]
+
+    @pytest.mark.asyncio
+    async def test_default_engine_is_duckduckgo(self):
+        """Default engine should be duckduckgo (most reliable from server IPs)."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx)
+        assert result["engine"] == "duckduckgo"
+
+    @pytest.mark.asyncio
+    async def test_duckduckgo_uses_html_lite(self):
+        """DuckDuckGo should use html.duckduckgo.com/html/ for bot resistance."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="duckduckgo")
+        assert "html.duckduckgo.com/html/" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_duckduckgo_date_filter(self):
+        """DuckDuckGo date filter should be passed as df param."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="duckduckgo", date_filter="week")
+        assert "df=w" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_bing_engine(self):
+        """Bing engine should use bing.com/search URL."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="bing")
+        assert "bing.com/search" in result["url"]
+        assert result["engine"] == "bing"
+
+    @pytest.mark.asyncio
+    async def test_bing_date_filter_day(self):
+        """Bing date filter for 'day' should use filters param with ez1."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="bing", date_filter="day")
+        assert "filters=" in result["url"]
+        assert "ez1" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_bing_date_filter_week(self):
+        """Bing date filter for 'week' should use ez7."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="bing", date_filter="week")
+        assert "ez7" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_bing_date_filter_month(self):
+        """Bing date filter for 'month' should use ez30."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="bing", date_filter="month")
+        assert "ez30" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_bing_date_filter_year(self):
+        """Bing date filter for 'year' should use ez365."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="bing", date_filter="year")
+        assert "ez365" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_bing_site_filter(self):
+        """Bing should support site: filter in query."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="bing", site_filter="example.com")
+        assert "site%3Aexample.com" in result["url"] or "site:example.com" in result["url"]
+
+    @pytest.mark.asyncio
+    async def test_google_engine_still_works(self):
+        """Google engine should still be available."""
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(query="test", ctx=ctx, engine="google")
+        assert "google.com/search" in result["url"]
+        assert result["engine"] == "google"
+
+    @pytest.mark.asyncio
+    async def test_extraction_js_contains_bing_selectors(self):
+        """The extraction JS should include bing.com selectors."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        await self.tool(query="test", ctx=ctx, engine="bing")
+        assert captured_js is not None
+        assert "bing.com" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_extraction_js_contains_duckduckgo_selectors(self):
+        """The extraction JS should include duckduckgo.com selectors."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        await self.tool(query="test", ctx=ctx, engine="duckduckgo")
+        assert captured_js is not None
+        assert "duckduckgo.com" in captured_js
+
+    @pytest.mark.asyncio
+    async def test_extraction_js_contains_google_selectors(self):
+        """The extraction JS should include google.com selectors."""
+        captured_js = None
+
+        async def side_effect(tool_name, args):
+            nonlocal captured_js
+            if tool_name == "playwright_browser_evaluate":
+                captured_js = args.get("expression", "")
+                return []
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        await self.tool(query="test", ctx=ctx, engine="google")
+        assert captured_js is not None
+        assert "google.com" in captured_js
+
+
 class TestSearchRegistration:
     def test_registers_two_tools(self):
         mcp = make_mcp()
