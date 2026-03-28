@@ -18,7 +18,7 @@ def mount_playwright(mcp: FastMCP) -> None:
     """
     transport = NpxStdioTransport(
         package="@playwright/mcp",
-        args=["--headless", "--no-sandbox"],
+        args=["--headless", "--no-sandbox", "--caps=pdf"],
     )
 
     proxy = create_proxy(transport)

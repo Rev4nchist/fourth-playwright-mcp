@@ -16,6 +16,7 @@ from src.tools.content import register_content_tools
 from src.tools.extraction import register_extraction_tools
 from src.tools.forms import register_form_tools
 from src.tools.navigation import register_navigation_tools
+from src.tools.performance import register_performance_tools
 from src.tools.scripting import register_scripting_tools
 from src.tools.search import register_search_tools
 from src.tools.session import register_session_tools
@@ -86,6 +87,25 @@ register_search_tools(mcp)
 register_content_tools(mcp)
 register_session_tools(mcp)
 register_scripting_tools(mcp)
+register_performance_tools(mcp)
+
+
+# --- Wrapper: playwright_navigate with explicit URL parameter ---
+
+@mcp.tool
+async def playwright_navigate(
+    url: str,
+    ctx: Context,
+) -> str:
+    """Navigate to a URL. Direct wrapper with proper URL parameter mapping.
+
+    Use this instead of playwright_browser_navigate if the proxied version
+    has parameter issues.
+
+    Args:
+        url: The URL to navigate to
+    """
+    return await ctx.fastmcp.call_tool("playwright_browser_navigate", {"url": url})
 
 
 # --- Wrapper: browser_wait_for with type coercion ---

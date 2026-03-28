@@ -5,6 +5,8 @@
 _No current goal. Next planned item will be promoted on next planning session._
 
 ## Completed
+- [x] [fix] install chrome channel in Dockerfile (not just chromium) (2026-03-28) `8bc9c33`
+- [x] [feat] fix subprocess proxy + add search, content, session, scripting tools (2026-03-28) `ff6a79e`
 - [x] Fix + Enhance Playwright Web MCP (2026-03-28)
 - [x] [test] add integration test suite for all web automation tools (2026-03-28) `cdaf492`
 - [x] [refactor] rebuild as general-purpose web automation MCP server (2026-03-28) `3da172d`

@@ -42,7 +42,7 @@ class TestWebNavigateAndWaitIntegration:
         # Should call wait_for with time param, then one final snapshot
         wait_calls = [c for c in tool_calls if c["tool"] == "playwright_browser_wait_for"]
         assert len(wait_calls) == 1
-        assert wait_calls[0]["args"] == {"time": 2}
+        assert wait_calls[0]["args"] == {"time": 10}
         snapshot_calls = [n for n in tool_names if n == "playwright_browser_snapshot"]
         assert len(snapshot_calls) == 1
 
@@ -175,7 +175,7 @@ class TestWebWaitForReadyIntegration:
         result = await navigation_tools["web_wait_for_ready"](ctx=mock_context)
 
         assert result["loaded"] is True
-        assert result["wait_seconds"] == 2
+        assert result["wait_seconds"] == 10
 
         tool_names = [c["tool"] for c in tool_calls]
         assert "playwright_browser_wait_for" in tool_names
@@ -206,14 +206,15 @@ class TestWebDiscoverNavigationIntegration:
     ):
         await navigation_tools["web_discover_navigation"](ctx=mock_context)
 
-        assert len(tool_calls) == 1
-        assert tool_calls[0]["tool"] == "playwright_browser_snapshot"
+        tool_names = [c["tool"] for c in tool_calls]
+        assert "playwright_browser_snapshot" in tool_names
+        assert "playwright_browser_evaluate" in tool_names
 
     @pytest.mark.asyncio
     async def test_return_structure(self, navigation_tools, mock_context):
         result = await navigation_tools["web_discover_navigation"](ctx=mock_context)
 
-        assert set(result.keys()) == {"snapshot", "instruction"}
+        assert set(result.keys()) == {"snapshot", "instruction", "navigation", "breadcrumbs", "pagination"}
 
     @pytest.mark.asyncio
     async def test_instruction_mentions_nav_elements(self, navigation_tools, mock_context):

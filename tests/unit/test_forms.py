@@ -86,7 +86,7 @@ class TestWebDiscoverForm:
 
         await tools["web_discover_form"](ctx=ctx)
 
-        ctx.fastmcp.call_tool.assert_called_once_with(
+        ctx.fastmcp.call_tool.assert_any_call(
             "playwright_browser_snapshot", {}
         )
 
@@ -107,6 +107,106 @@ class TestWebDiscoverForm:
         instruction = result["instruction"]
         for keyword in ["label", "type", "ref", "current_value", "options"]:
             assert keyword in instruction, f"Instruction missing '{keyword}'"
+
+
+class TestWebDiscoverFormDomExtraction:
+    """Tests for DOM extraction in web_discover_form."""
+
+    @pytest.mark.asyncio
+    async def test_returns_fields_key(self, tools, ctx):
+        """web_discover_form should return extracted 'fields' via DOM."""
+        mock_fields = [
+            {"tag": "input", "type": "text", "name": "username", "id": "user",
+             "label": "Username", "value": "", "required": True, "disabled": False},
+        ]
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_fields
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        result = await tools["web_discover_form"](ctx=ctx)
+        assert "fields" in result
+        assert len(result["fields"]) == 1
+        assert result["fields"][0]["name"] == "username"
+
+    @pytest.mark.asyncio
+    async def test_returns_fields_count(self, tools, ctx):
+        """web_discover_form should return 'fields_count'."""
+        mock_fields = [
+            {"tag": "input", "type": "text", "name": "a", "id": "", "label": "",
+             "value": "", "required": False, "disabled": False},
+            {"tag": "input", "type": "email", "name": "b", "id": "", "label": "",
+             "value": "", "required": False, "disabled": False},
+        ]
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_fields
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        result = await tools["web_discover_form"](ctx=ctx)
+        assert "fields_count" in result
+        assert result["fields_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_calls_evaluate(self, tools, ctx):
+        """web_discover_form should call playwright_browser_evaluate."""
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        await tools["web_discover_form"](ctx=ctx)
+        calls = ctx.fastmcp.call_tool.call_args_list
+        evaluate_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(evaluate_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_still_returns_snapshot(self, tools, ctx):
+        """web_discover_form should still include snapshot for ref IDs."""
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "[snapshot data]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        result = await tools["web_discover_form"](ctx=ctx)
+        assert "snapshot" in result
+
+    @pytest.mark.asyncio
+    async def test_still_returns_instruction(self, tools, ctx):
+        """web_discover_form should still include instruction as fallback."""
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return []
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        result = await tools["web_discover_form"](ctx=ctx)
+        assert "instruction" in result
+
+    @pytest.mark.asyncio
+    async def test_fallback_on_evaluate_failure(self, tools, ctx):
+        """If evaluate fails, should fall back to snapshot+instruction, fields empty."""
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                raise Exception("JS eval failed")
+            return "[snapshot]"
+
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        result = await tools["web_discover_form"](ctx=ctx)
+        assert "snapshot" in result
+        assert "instruction" in result
+        assert "fields" in result
+        assert result["fields"] == []
 
 
 # --- web_fill_form tests ---

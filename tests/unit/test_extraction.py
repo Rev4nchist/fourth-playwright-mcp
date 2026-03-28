@@ -108,6 +108,8 @@ class TestWebExtractTable:
 
 
 class TestWebExtractPageData:
+    """Tests for web_extract_page_data legacy behavior (use_dom=False)."""
+
     def setup_method(self):
         self.mcp = make_mcp()
         register_extraction_tools(self.mcp)
@@ -116,47 +118,48 @@ class TestWebExtractPageData:
     @pytest.mark.asyncio
     async def test_returns_snapshot(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx)
+        result = await self.tool(ctx=ctx, use_dom=False)
         assert "snapshot" in result
 
     @pytest.mark.asyncio
     async def test_returns_target(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx)
+        result = await self.tool(ctx=ctx, use_dom=False)
         assert "target" in result
         assert result["target"] == "all visible content"
 
     @pytest.mark.asyncio
     async def test_returns_instruction(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx)
+        result = await self.tool(ctx=ctx, use_dom=False)
         assert "instruction" in result
 
     @pytest.mark.asyncio
     async def test_custom_target(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx, target="sidebar metrics")
+        result = await self.tool(ctx=ctx, target="sidebar metrics", use_dom=False)
         assert result["target"] == "sidebar metrics"
         assert "sidebar metrics" in result["instruction"]
 
     @pytest.mark.asyncio
     async def test_without_screenshot(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx, include_screenshot=False)
+        result = await self.tool(ctx=ctx, include_screenshot=False, use_dom=False)
         assert "screenshot" not in result
 
     @pytest.mark.asyncio
     async def test_with_screenshot(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx, include_screenshot=True)
+        result = await self.tool(ctx=ctx, include_screenshot=True, use_dom=False)
         assert "screenshot" in result
         ctx.fastmcp.call_tool.assert_any_call("playwright_browser_take_screenshot", {})
 
     @pytest.mark.asyncio
     async def test_screenshot_instruction_mentions_visual(self):
         ctx = make_ctx()
-        result = await self.tool(ctx=ctx, include_screenshot=True)
-        assert "visual" in result["instruction"].lower() or "screenshot" in result["instruction"].lower()
+        result = await self.tool(ctx=ctx, include_screenshot=True, use_dom=False)
+        instruction = result["instruction"].lower()
+        assert "visual" in instruction or "screenshot" in instruction
 
     @pytest.mark.asyncio
     async def test_reports_progress(self):
@@ -359,6 +362,150 @@ class TestWebExtractTableDom:
         result = await self.tool(ctx=ctx)
         assert "instruction" in result
         assert "snapshot" in result
+
+
+class TestWebExtractPageDataDom:
+    """Tests for DOM extraction in web_extract_page_data (use_dom=True)."""
+
+    def setup_method(self):
+        self.mcp = make_mcp()
+        register_extraction_tools(self.mcp)
+        self.tool = self.mcp._registered_tools["web_extract_page_data"]
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_returns_content(self):
+        """use_dom=True should return extracted 'content' dict."""
+        mock_content = {
+            "headings": [{"level": 1, "text": "Hello"}],
+            "text": "Page content here",
+            "images": [],
+            "url": "https://example.com",
+            "title": "Example Page",
+        }
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_content
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(ctx=ctx, use_dom=True)
+        assert "content" in result
+        assert result["content"]["title"] == "Example Page"
+        assert result["content"]["text"] == "Page content here"
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_calls_evaluate(self):
+        """use_dom=True should call playwright_browser_evaluate."""
+        mock_content = {
+            "headings": [], "text": "", "images": [],
+            "url": "https://example.com", "title": "",
+        }
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_content
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        await self.tool(ctx=ctx, use_dom=True)
+        calls = ctx.fastmcp.call_tool.call_args_list
+        evaluate_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(evaluate_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_preserves_target(self):
+        """use_dom=True should still return the target."""
+        mock_content = {
+            "headings": [], "text": "", "images": [],
+            "url": "https://example.com", "title": "",
+        }
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_content
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(ctx=ctx, use_dom=True, target="sidebar metrics")
+        assert result["target"] == "sidebar metrics"
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_no_snapshot_without_screenshot(self):
+        """use_dom=True without screenshot should have snapshot=None."""
+        mock_content = {
+            "headings": [], "text": "", "images": [],
+            "url": "https://example.com", "title": "",
+        }
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_content
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(ctx=ctx, use_dom=True, include_screenshot=False)
+        assert result.get("snapshot") is None
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_with_screenshot(self):
+        """use_dom=True with screenshot should include both content and screenshot."""
+        mock_content = {
+            "headings": [], "text": "", "images": [],
+            "url": "https://example.com", "title": "",
+        }
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_content
+            if tool_name == "playwright_browser_take_screenshot":
+                return "<screenshot data>"
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(ctx=ctx, use_dom=True, include_screenshot=True)
+        assert "content" in result
+        assert "screenshot" in result
+
+    @pytest.mark.asyncio
+    async def test_use_dom_default_is_true(self):
+        """Default use_dom should be True (new behavior)."""
+        mock_content = {
+            "headings": [], "text": "", "images": [],
+            "url": "https://example.com", "title": "",
+        }
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return mock_content
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(ctx=ctx)
+        assert "content" in result
+
+    @pytest.mark.asyncio
+    async def test_use_dom_false_returns_instruction(self):
+        """use_dom=False should use old snapshot + instruction approach."""
+        ctx = make_ctx()
+        result = await self.tool(ctx=ctx, use_dom=False)
+        assert "instruction" in result
+        assert "snapshot" in result
+        assert "content" not in result
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_fallback_on_evaluate_failure(self):
+        """If evaluate fails with use_dom=True, should fall back to snapshot+instruction."""
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                raise Exception("JS eval failed")
+            return "<snapshot>"
+
+        ctx = make_ctx(call_tool_side_effect=side_effect)
+        result = await self.tool(ctx=ctx, use_dom=True)
+        assert "snapshot" in result
+        assert "instruction" in result
 
 
 class TestExtractionRegistration:

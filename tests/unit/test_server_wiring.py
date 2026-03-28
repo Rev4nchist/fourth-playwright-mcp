@@ -152,6 +152,19 @@ class TestNewToolModuleWiring:
         source = _read_server()
         assert "web_extract_structured_data" in source
 
+    def test_performance_import_in_server(self):
+        source = _read_server()
+        assert "from src.tools.performance import register_performance_tools" in source
+
+    def test_performance_registration_in_server(self):
+        source = _read_server()
+        assert "register_performance_tools(mcp)" in source
+
+    def test_performance_module_importable(self):
+        from src.tools.performance import register_performance_tools
+
+        assert callable(register_performance_tools)
+
     def test_server_instructions_mentions_web_save_session(self):
         source = _read_server()
         assert "web_save_session" in source

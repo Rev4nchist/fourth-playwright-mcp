@@ -76,10 +76,63 @@ def register_search_tools(mcp: FastMCP) -> None:
             "playwright_browser_snapshot", {}
         )
 
+        # DOM extraction of search results
+        search_extract_js = """() => {
+    const results = [];
+    document.querySelectorAll('div.g, div[data-sokoban-container]').forEach((el, i) => {
+        const titleEl = el.querySelector('h3');
+        const linkEl = el.querySelector('a[href]');
+        const snippetEl = el.querySelector(
+            '.VwiC3b, [data-sncf], [style*="-webkit-line-clamp"]'
+        );
+        if (titleEl && linkEl) {
+            results.push({
+                position: i + 1,
+                title: titleEl.textContent.trim(),
+                url: linkEl.href,
+                snippet: snippetEl ? snippetEl.textContent.trim() : ''
+            });
+        }
+    });
+    if (results.length === 0) {
+        document.querySelectorAll(
+            '[data-testid="result"], .result, article'
+        ).forEach((el, i) => {
+            const titleEl = el.querySelector(
+                'h2, h3, a[data-testid="result-title-a"]'
+            );
+            const linkEl = el.querySelector('a[href]');
+            const snippetEl = el.querySelector(
+                '[data-result="snippet"], .result__snippet'
+            );
+            if (titleEl && linkEl) {
+                results.push({
+                    position: i + 1,
+                    title: titleEl.textContent.trim(),
+                    url: linkEl.href,
+                    snippet: snippetEl ? snippetEl.textContent.trim() : ''
+                });
+            }
+        });
+    }
+    return results;
+}"""
+
+        extracted_results: list = []
+        try:
+            extracted_results = await ctx.fastmcp.call_tool(
+                "playwright_browser_evaluate",
+                {"expression": search_extract_js},
+            )
+        except Exception:
+            pass  # Fall back to snapshot + instruction
+
         return {
             "query": query,
             "engine": engine,
             "url": url,
+            "results": extracted_results[:num_results],
+            "results_count": len(extracted_results[:num_results]),
             "snapshot": snapshot,
             "instruction": (
                 f"Extract the top {num_results} search results from the snapshot. "

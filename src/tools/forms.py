@@ -26,8 +26,54 @@ def register_form_tools(mcp: FastMCP) -> None:
 
         snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
+        # DOM extraction of form fields
+        form_extract_js = """() => {
+    const fields = [];
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(el => {
+        if (el.type === 'hidden') return;
+        const label = el.labels?.[0]?.textContent?.trim()
+            || el.getAttribute('aria-label')
+            || el.getAttribute('placeholder')
+            || el.name || el.id || '';
+        const field = {
+            tag: el.tagName.toLowerCase(),
+            type: el.type || el.tagName.toLowerCase(),
+            name: el.name || null,
+            id: el.id || null,
+            label: label,
+            value: el.value || '',
+            required: el.required,
+            disabled: el.disabled,
+        };
+        if (el.tagName === 'SELECT') {
+            field.options = [...el.options].map(o => ({
+                value: o.value,
+                text: o.textContent.trim(),
+                selected: o.selected
+            }));
+        }
+        if (el.type === 'checkbox' || el.type === 'radio') {
+            field.checked = el.checked;
+        }
+        fields.push(field);
+    });
+    return fields;
+}"""
+
+        extracted_fields: list = []
+        try:
+            extracted_fields = await ctx.fastmcp.call_tool(
+                "playwright_browser_evaluate",
+                {"expression": form_extract_js},
+            )
+        except Exception:
+            pass  # Fall back to snapshot + instruction
+
         return {
             "form_description": form_description,
+            "fields": extracted_fields,
+            "fields_count": len(extracted_fields),
             "snapshot": snapshot,
             "instruction": (
                 f"Identify all form fields for the '{form_description}' in the page snapshot. "

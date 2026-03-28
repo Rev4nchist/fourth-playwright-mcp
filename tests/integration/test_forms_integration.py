@@ -17,14 +17,15 @@ class TestWebDiscoverFormIntegration:
     async def test_calls_snapshot(self, form_tools, mock_context, tool_calls):
         await form_tools["web_discover_form"](ctx=mock_context)
 
-        assert len(tool_calls) == 1
-        assert tool_calls[0]["tool"] == "playwright_browser_snapshot"
+        tool_names = [c["tool"] for c in tool_calls]
+        assert "playwright_browser_snapshot" in tool_names
+        assert "playwright_browser_evaluate" in tool_names
 
     @pytest.mark.asyncio
     async def test_return_structure(self, form_tools, mock_context):
         result = await form_tools["web_discover_form"](ctx=mock_context)
 
-        assert set(result.keys()) == {"form_description", "snapshot", "instruction"}
+        assert set(result.keys()) == {"form_description", "snapshot", "instruction", "fields", "fields_count"}
 
     @pytest.mark.asyncio
     async def test_default_description(self, form_tools, mock_context):

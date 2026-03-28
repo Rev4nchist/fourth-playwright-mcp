@@ -42,11 +42,12 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 loaded = False
                 elapsed = timeout_seconds
         else:
+            wait_time = min(timeout_seconds, 30)
             await ctx.fastmcp.call_tool(
-                "playwright_browser_wait_for", {"time": 2}
+                "playwright_browser_wait_for", {"time": wait_time}
             )
             loaded = True
-            elapsed = 2
+            elapsed = wait_time
 
         await ctx.report_progress(
             progress=0.9, total=1.0, message="Page loaded"
@@ -91,15 +92,16 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 "snapshot": snapshot,
             }
 
+        wait_time = min(timeout_seconds, 30)
         await ctx.fastmcp.call_tool(
-            "playwright_browser_wait_for", {"time": 2}
+            "playwright_browser_wait_for", {"time": wait_time}
         )
         snapshot = await ctx.fastmcp.call_tool(
             "playwright_browser_snapshot", {}
         )
         return {
             "loaded": True,
-            "wait_seconds": 2,
+            "wait_seconds": wait_time,
             "snapshot": snapshot,
         }
 
@@ -109,12 +111,56 @@ def register_navigation_tools(mcp: FastMCP) -> None:
     ) -> dict:
         """Discover navigation structure on the current page.
 
-        Returns the page snapshot with instructions to identify all
-        navigable elements.
+        Extracts navigation elements via DOM queries and returns structured
+        data for navigation links, breadcrumbs, and pagination. Also includes
+        the page snapshot for ref IDs.
         """
         snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
 
+        # DOM extraction of navigation elements
+        nav_extract_js = """() => {
+    const nav = [];
+    document.querySelectorAll(
+        'nav a, [role="navigation"] a, header a, .navbar a, .nav a, .menu a'
+    ).forEach(a => {
+        nav.push({
+            text: a.textContent.trim(),
+            href: a.href,
+            section: a.closest(
+                'nav, [role="navigation"], header'
+            )?.getAttribute('aria-label') || 'main'
+        });
+    });
+    const breadcrumbs = [];
+    document.querySelectorAll(
+        '[aria-label="breadcrumb"] a, .breadcrumb a, nav.breadcrumbs a'
+    ).forEach(a => {
+        breadcrumbs.push({ text: a.textContent.trim(), href: a.href });
+    });
+    const pagination = [];
+    document.querySelectorAll(
+        '[aria-label="pagination"] a, .pagination a, nav.pager a'
+    ).forEach(a => {
+        pagination.push({ text: a.textContent.trim(), href: a.href });
+    });
+    return { navigation: nav, breadcrumbs, pagination };
+}"""
+
+        extracted: dict = {"navigation": [], "breadcrumbs": [], "pagination": []}
+        try:
+            raw = await ctx.fastmcp.call_tool(
+                "playwright_browser_evaluate",
+                {"expression": nav_extract_js},
+            )
+            if isinstance(raw, dict):
+                extracted = raw
+        except Exception:
+            pass  # Fall back to snapshot + instruction
+
         return {
+            "navigation": extracted.get("navigation", []),
+            "breadcrumbs": extracted.get("breadcrumbs", []),
+            "pagination": extracted.get("pagination", []),
             "snapshot": snapshot,
             "instruction": (
                 "Identify all navigation elements on this page: "

@@ -90,17 +90,81 @@ def register_extraction_tools(mcp: FastMCP) -> None:
         ctx: Context,
         target: str = "all visible content",
         include_screenshot: bool = False,
+        use_dom: bool = True,
     ) -> dict:
         """Extract data from the current page.
 
-        Captures the accessibility snapshot and optionally a screenshot
-        for visual data extraction (charts, graphs, images).
+        By default, uses DOM evaluation to extract headings, text, and images
+        directly. Set use_dom=False to use the legacy snapshot + instruction
+        approach instead.
 
         Args:
             target: Description of what to extract (e.g., 'sidebar metrics',
                     'header summary', 'all visible content')
             include_screenshot: Whether to also capture a screenshot for visual data
+            use_dom: When True (default), extract content directly via JS DOM
+                    queries instead of using the snapshot + instruction approach
         """
+        if use_dom:
+            await ctx.report_progress(
+                progress=0.2, total=1.0, message="Extracting page content from DOM"
+            )
+
+            page_extract_js = """() => {
+    const main = document.querySelector(
+        'main, [role="main"], article, .content, #content'
+    ) || document.body;
+    const clone = main.cloneNode(true);
+    clone.querySelectorAll(
+        'script, style, nav, footer, header, aside, .ad, .ads'
+    ).forEach(el => el.remove());
+    const headings = [...clone.querySelectorAll('h1, h2, h3, h4')].map(h => ({
+        level: parseInt(h.tagName[1]),
+        text: h.textContent.trim()
+    }));
+    const text = clone.textContent.replace(/\\s+/g, ' ').trim().substring(0, 15000);
+    const images = [...document.querySelectorAll('img[src]')].slice(0, 10).map(
+        img => ({ src: img.src, alt: img.alt || '' })
+    );
+    return {
+        headings, text, images,
+        url: window.location.href,
+        title: document.title
+    };
+}"""
+
+            try:
+                extracted = await ctx.fastmcp.call_tool(
+                    "playwright_browser_evaluate",
+                    {"expression": page_extract_js},
+                )
+
+                result: dict = {
+                    "target": target,
+                    "content": extracted,
+                    "snapshot": None,
+                    "screenshot": None,
+                }
+
+                if include_screenshot:
+                    await ctx.report_progress(
+                        progress=0.6,
+                        total=1.0,
+                        message="Capturing screenshot",
+                    )
+                    result["snapshot"] = await ctx.fastmcp.call_tool(
+                        "playwright_browser_snapshot", {}
+                    )
+                    result["screenshot"] = await ctx.fastmcp.call_tool(
+                        "playwright_browser_take_screenshot", {}
+                    )
+
+                return result
+
+            except Exception:
+                pass  # Fall back to snapshot + instruction below
+
+        # Legacy snapshot + instruction approach (use_dom=False or fallback)
         await ctx.report_progress(
             progress=0.2, total=1.0, message="Capturing page snapshot"
         )

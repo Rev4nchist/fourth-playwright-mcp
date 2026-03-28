@@ -92,7 +92,7 @@ class TestWebExtractPageDataIntegration:
         await extraction_tools["web_extract_page_data"](ctx=mock_context)
 
         tool_names = [c["tool"] for c in tool_calls]
-        assert tool_names == ["playwright_browser_snapshot"]
+        assert "playwright_browser_evaluate" in tool_names
 
     @pytest.mark.asyncio
     async def test_with_screenshot_calls_both(
@@ -103,31 +103,31 @@ class TestWebExtractPageDataIntegration:
         )
 
         tool_names = [c["tool"] for c in tool_calls]
-        assert "playwright_browser_snapshot" in tool_names
+        assert "playwright_browser_evaluate" in tool_names
         assert "playwright_browser_take_screenshot" in tool_names
 
     @pytest.mark.asyncio
     async def test_with_screenshot_snapshot_before_screenshot(
         self, extraction_tools, mock_context, tool_calls,
     ):
-        """Snapshot should come before screenshot in call order."""
+        """Evaluate should come before screenshot in call order."""
         await extraction_tools["web_extract_page_data"](
             ctx=mock_context, include_screenshot=True,
         )
 
         tool_names = [c["tool"] for c in tool_calls]
-        snap_idx = tool_names.index("playwright_browser_snapshot")
+        eval_idx = tool_names.index("playwright_browser_evaluate")
         shot_idx = tool_names.index("playwright_browser_take_screenshot")
-        assert snap_idx < shot_idx
+        assert eval_idx < shot_idx
 
     @pytest.mark.asyncio
     async def test_return_structure_without_screenshot(self, extraction_tools, mock_context):
         result = await extraction_tools["web_extract_page_data"](ctx=mock_context)
 
-        assert "snapshot" in result
+        assert "content" in result
         assert "target" in result
-        assert "instruction" in result
-        assert "screenshot" not in result
+        assert "snapshot" in result
+        assert "screenshot" not in result or result["screenshot"] is None
 
     @pytest.mark.asyncio
     async def test_return_structure_with_screenshot(self, extraction_tools, mock_context):
@@ -135,10 +135,10 @@ class TestWebExtractPageDataIntegration:
             ctx=mock_context, include_screenshot=True,
         )
 
-        assert "snapshot" in result
+        assert "content" in result
         assert "screenshot" in result
         assert "target" in result
-        assert "instruction" in result
+        assert "snapshot" in result
 
     @pytest.mark.asyncio
     async def test_custom_target(self, extraction_tools, mock_context):
@@ -147,7 +147,6 @@ class TestWebExtractPageDataIntegration:
         )
 
         assert result["target"] == "sidebar metrics"
-        assert "sidebar metrics" in result["instruction"]
 
     @pytest.mark.asyncio
     async def test_default_target(self, extraction_tools, mock_context):
