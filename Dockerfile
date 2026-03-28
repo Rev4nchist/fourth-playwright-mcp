@@ -37,9 +37,9 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-# Install Playwright browsers
+# Install Playwright browsers (chrome channel — @playwright/mcp looks for /opt/google/chrome/chrome)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN npx playwright install chromium
+RUN npx playwright install chrome --with-deps
 
 # Install Python dependencies
 COPY pyproject.toml ./
