@@ -1,0 +1,216 @@
+"""Integration tests for web data extraction tools.
+
+Verifies that web_extract_table, web_extract_page_data, and web_extract_links
+call the correct Playwright tools and return format-appropriate instructions.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+
+class TestWebExtractTableIntegration:
+    """End-to-end verification of web_extract_table."""
+
+    @pytest.mark.asyncio
+    async def test_calls_snapshot(self, extraction_tools, mock_context, tool_calls):
+        await extraction_tools["web_extract_table"](ctx=mock_context)
+
+        assert len(tool_calls) == 1
+        assert tool_calls[0]["tool"] == "playwright_browser_snapshot"
+
+    @pytest.mark.asyncio
+    async def test_return_structure(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_table"](ctx=mock_context)
+
+        assert set(result.keys()) == {"table_description", "format", "snapshot", "instruction"}
+
+    @pytest.mark.asyncio
+    async def test_default_format_is_rows(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_table"](ctx=mock_context)
+
+        assert result["format"] == "rows"
+
+    @pytest.mark.asyncio
+    async def test_rows_format_mentions_dictionaries(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_table"](
+            ctx=mock_context, format="rows",
+        )
+
+        assert "dictionar" in result["instruction"].lower()
+
+    @pytest.mark.asyncio
+    async def test_csv_format_instruction(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_table"](
+            ctx=mock_context, format="csv",
+        )
+
+        assert "csv" in result["instruction"].lower()
+
+    @pytest.mark.asyncio
+    async def test_markdown_format_instruction(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_table"](
+            ctx=mock_context, format="markdown",
+        )
+
+        assert "markdown" in result["instruction"].lower()
+
+    @pytest.mark.asyncio
+    async def test_instruction_always_mentions_pagination(self, extraction_tools, mock_context):
+        """All formats should mention pagination controls."""
+        for fmt in ("rows", "csv", "markdown"):
+            result = await extraction_tools["web_extract_table"](
+                ctx=mock_context, format=fmt,
+            )
+            assert "pagination" in result["instruction"].lower(), (
+                f"format={fmt} instruction missing pagination mention"
+            )
+
+    @pytest.mark.asyncio
+    async def test_custom_table_description(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_table"](
+            ctx=mock_context, table_description="employee schedule",
+        )
+
+        assert result["table_description"] == "employee schedule"
+        assert "employee schedule" in result["instruction"]
+
+    @pytest.mark.asyncio
+    async def test_progress_reported(self, extraction_tools, mock_context):
+        await extraction_tools["web_extract_table"](ctx=mock_context)
+
+        mock_context.report_progress.assert_called()
+
+
+class TestWebExtractPageDataIntegration:
+    """End-to-end verification of web_extract_page_data."""
+
+    @pytest.mark.asyncio
+    async def test_without_screenshot_calls_only_snapshot(
+        self, extraction_tools, mock_context, tool_calls,
+    ):
+        await extraction_tools["web_extract_page_data"](ctx=mock_context)
+
+        tool_names = [c["tool"] for c in tool_calls]
+        assert tool_names == ["playwright_browser_snapshot"]
+
+    @pytest.mark.asyncio
+    async def test_with_screenshot_calls_both(
+        self, extraction_tools, mock_context, tool_calls,
+    ):
+        await extraction_tools["web_extract_page_data"](
+            ctx=mock_context, include_screenshot=True,
+        )
+
+        tool_names = [c["tool"] for c in tool_calls]
+        assert "playwright_browser_snapshot" in tool_names
+        assert "playwright_browser_take_screenshot" in tool_names
+
+    @pytest.mark.asyncio
+    async def test_with_screenshot_snapshot_before_screenshot(
+        self, extraction_tools, mock_context, tool_calls,
+    ):
+        """Snapshot should come before screenshot in call order."""
+        await extraction_tools["web_extract_page_data"](
+            ctx=mock_context, include_screenshot=True,
+        )
+
+        tool_names = [c["tool"] for c in tool_calls]
+        snap_idx = tool_names.index("playwright_browser_snapshot")
+        shot_idx = tool_names.index("playwright_browser_take_screenshot")
+        assert snap_idx < shot_idx
+
+    @pytest.mark.asyncio
+    async def test_return_structure_without_screenshot(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_page_data"](ctx=mock_context)
+
+        assert "snapshot" in result
+        assert "target" in result
+        assert "instruction" in result
+        assert "screenshot" not in result
+
+    @pytest.mark.asyncio
+    async def test_return_structure_with_screenshot(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_page_data"](
+            ctx=mock_context, include_screenshot=True,
+        )
+
+        assert "snapshot" in result
+        assert "screenshot" in result
+        assert "target" in result
+        assert "instruction" in result
+
+    @pytest.mark.asyncio
+    async def test_custom_target(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_page_data"](
+            ctx=mock_context, target="sidebar metrics",
+        )
+
+        assert result["target"] == "sidebar metrics"
+        assert "sidebar metrics" in result["instruction"]
+
+    @pytest.mark.asyncio
+    async def test_default_target(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_page_data"](ctx=mock_context)
+
+        assert result["target"] == "all visible content"
+
+    @pytest.mark.asyncio
+    async def test_progress_reported(self, extraction_tools, mock_context):
+        await extraction_tools["web_extract_page_data"](ctx=mock_context)
+
+        mock_context.report_progress.assert_called()
+
+
+class TestWebExtractLinksIntegration:
+    """End-to-end verification of web_extract_links."""
+
+    @pytest.mark.asyncio
+    async def test_calls_only_snapshot(
+        self, extraction_tools, mock_context, tool_calls,
+    ):
+        await extraction_tools["web_extract_links"](ctx=mock_context)
+
+        assert len(tool_calls) == 1
+        assert tool_calls[0]["tool"] == "playwright_browser_snapshot"
+
+    @pytest.mark.asyncio
+    async def test_return_structure(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_links"](ctx=mock_context)
+
+        assert set(result.keys()) == {"snapshot", "filter", "instruction"}
+
+    @pytest.mark.asyncio
+    async def test_no_filter_instruction(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_links"](ctx=mock_context)
+
+        assert "all links" in result["instruction"].lower()
+        assert result["filter"] is None
+
+    @pytest.mark.asyncio
+    async def test_with_filter_text(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_links"](
+            ctx=mock_context, filter_text="privacy",
+        )
+
+        assert result["filter"] == "privacy"
+        assert "privacy" in result["instruction"]
+
+    @pytest.mark.asyncio
+    async def test_filter_appears_in_instruction(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_links"](
+            ctx=mock_context, filter_text="dashboard",
+        )
+
+        instruction = result["instruction"]
+        assert "dashboard" in instruction
+        # Should instruct to only include matching links
+        assert "only include" in instruction.lower() or "filter" in instruction.lower()
+
+    @pytest.mark.asyncio
+    async def test_instruction_mentions_link_structure(self, extraction_tools, mock_context):
+        result = await extraction_tools["web_extract_links"](ctx=mock_context)
+        instruction = result["instruction"].lower()
+
+        assert "text" in instruction
+        assert "href" in instruction or "url" in instruction
