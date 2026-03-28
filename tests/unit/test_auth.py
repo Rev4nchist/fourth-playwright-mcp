@@ -212,3 +212,151 @@ class TestWebCheckAuthState:
         nav_calls = [c for c in calls if c[0][0] == "playwright_browser_navigate"]
         assert len(nav_calls) == 0
 
+
+class TestWebLoginAutoFill:
+
+    async def test_auto_fill_false_uses_instruction(self, mock_ctx):
+        """auto_fill=False should keep original behavior."""
+        tools = _extract_tools()
+        result = await tools["web_login"](
+            url="https://example.com/login",
+            username="user",
+            password="pass",
+            ctx=mock_ctx,
+            auto_fill=False,
+        )
+        assert "instruction" in result
+        assert "snapshot" in result
+        # Should NOT call evaluate
+        calls = mock_ctx.fastmcp.call_tool.call_args_list
+        eval_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(eval_calls) == 0
+
+    async def test_auto_fill_default_is_false(self, mock_ctx):
+        """Default auto_fill should be False (original behavior)."""
+        tools = _extract_tools()
+        result = await tools["web_login"](
+            url="https://example.com/login",
+            username="user",
+            password="pass",
+            ctx=mock_ctx,
+        )
+        assert "instruction" in result
+        # No evaluate calls in default mode
+        calls = mock_ctx.fastmcp.call_tool.call_args_list
+        eval_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(eval_calls) == 0
+
+    async def test_auto_fill_true_calls_evaluate(self, mock_ctx):
+        """auto_fill=True should use playwright_browser_evaluate to fill fields."""
+        fill_result = {"username": True, "password": True}
+
+        call_count = 0
+
+        async def side_effect(tool_name, args):
+            nonlocal call_count
+            call_count += 1
+            if tool_name == "playwright_browser_evaluate":
+                return fill_result
+            return {"snapshot": "page content"}
+
+        mock_ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        tools = _extract_tools()
+        await tools["web_login"](
+            url="https://example.com/login",
+            username="admin",
+            password="secret",
+            ctx=mock_ctx,
+            auto_fill=True,
+        )
+        calls = mock_ctx.fastmcp.call_tool.call_args_list
+        eval_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(eval_calls) >= 1, "auto_fill=True should call evaluate"
+
+    async def test_auto_fill_returns_filled_result(self, mock_ctx):
+        """auto_fill=True should return the filled status."""
+        fill_result = {"username": True, "password": True}
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return fill_result
+            return {"snapshot": "page content"}
+
+        mock_ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        tools = _extract_tools()
+        result = await tools["web_login"](
+            url="https://example.com/login",
+            username="admin",
+            password="secret",
+            ctx=mock_ctx,
+            auto_fill=True,
+        )
+        assert result.get("auto_filled") is True
+        assert result.get("filled") == fill_result
+
+    async def test_auto_fill_returns_snapshot(self, mock_ctx):
+        """auto_fill=True should take a final snapshot."""
+        fill_result = {"username": True, "password": True}
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return fill_result
+            return {"snapshot": "page content"}
+
+        mock_ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        tools = _extract_tools()
+        result = await tools["web_login"](
+            url="https://example.com/login",
+            username="admin",
+            password="secret",
+            ctx=mock_ctx,
+            auto_fill=True,
+        )
+        assert "snapshot" in result
+
+    async def test_auto_fill_click_submit(self, mock_ctx):
+        """auto_fill=True with submit_method='click' should click submit button."""
+        fill_result = {"username": True, "password": True}
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return fill_result
+            return {"snapshot": "page content"}
+
+        mock_ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        tools = _extract_tools()
+        await tools["web_login"](
+            url="https://example.com/login",
+            username="admin",
+            password="secret",
+            ctx=mock_ctx,
+            auto_fill=True,
+            submit_method="click",
+        )
+        calls = mock_ctx.fastmcp.call_tool.call_args_list
+        click_calls = [c for c in calls if c[0][0] == "playwright_browser_click"]
+        assert len(click_calls) == 1
+
+    async def test_auto_fill_enter_submit(self, mock_ctx):
+        """auto_fill=True with submit_method='enter' should press Enter."""
+        fill_result = {"username": True, "password": True}
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                return fill_result
+            return {"snapshot": "page content"}
+
+        mock_ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        tools = _extract_tools()
+        await tools["web_login"](
+            url="https://example.com/login",
+            username="admin",
+            password="secret",
+            ctx=mock_ctx,
+            auto_fill=True,
+            submit_method="enter",
+        )
+        calls = mock_ctx.fastmcp.call_tool.call_args_list
+        press_calls = [c for c in calls if c[0][0] == "playwright_browser_press_key"]
+        assert len(press_calls) == 1
+

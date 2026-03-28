@@ -13,7 +13,7 @@ Claude.ai / Cowork Plugin
 FastMCP v3 (Python)
     │
     ├── 70+ playwright_* tools (proxied via subprocess)
-    ├── 10 web_* orchestration tools
+    ├── 19 web_* orchestration tools
     ├── 1 browser_wait_for wrapper
     └── Skills (MCP resources)
 ```
@@ -24,16 +24,25 @@ FastMCP v3 (Python)
 
 | Tool | Purpose |
 |------|---------|
-| `web_login` | Navigate to login page, discover form fields |
+| `web_login` | Navigate to login page, discover form fields (auto_fill option) |
 | `web_check_auth_state` | Check if user is authenticated |
 | `web_navigate_and_wait` | Navigate + SPA-aware content waiting |
 | `web_wait_for_ready` | Wait for page content after any action |
 | `web_discover_navigation` | Identify menus, tabs, pagination |
-| `web_extract_table` | Extract table data (rows/csv/markdown) |
+| `web_extract_table` | Extract table data (rows/csv/markdown, DOM mode) |
 | `web_extract_page_data` | Extract targeted page content |
-| `web_extract_links` | Extract links with optional filter |
+| `web_extract_links` | Extract links via DOM (structured data) |
 | `web_discover_form` | Identify form fields, types, refs |
 | `web_fill_form` | Batch-fill form fields |
+| `web_search` | Search Google/DuckDuckGo with filters |
+| `web_search_and_extract` | Search + multi-page content extraction |
+| `web_extract_article` | Clean article text via DOM parsing |
+| `web_extract_metadata` | Page metadata (OG, JSON-LD, meta tags) |
+| `web_save_pdf` | Save page as PDF |
+| `web_save_session` | Save browser session state |
+| `web_load_session` | Restore saved session |
+| `web_execute_js` | Run JavaScript with error handling |
+| `web_extract_structured_data` | CSS selector-based data extraction |
 
 ### Playwright Primitives (proxied)
 

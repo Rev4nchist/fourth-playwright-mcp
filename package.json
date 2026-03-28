@@ -4,9 +4,6 @@
   "private": true,
   "description": "@playwright/mcp subprocess dependency for playwright-web-mcp",
   "dependencies": {
-    "@playwright/mcp": "^0.0.28"
-  },
-  "scripts": {
-    "postinstall": "npx playwright install chromium"
+    "@playwright/mcp": "^0.0.68"
   }
 }

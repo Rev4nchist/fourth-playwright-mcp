@@ -163,28 +163,29 @@ class TestWebExtractPageDataIntegration:
 
 
 class TestWebExtractLinksIntegration:
-    """End-to-end verification of web_extract_links."""
+    """End-to-end verification of web_extract_links with DOM extraction."""
 
     @pytest.mark.asyncio
-    async def test_calls_only_snapshot(
+    async def test_calls_evaluate(
         self, extraction_tools, mock_context, tool_calls,
     ):
         await extraction_tools["web_extract_links"](ctx=mock_context)
 
         assert len(tool_calls) == 1
-        assert tool_calls[0]["tool"] == "playwright_browser_snapshot"
+        assert tool_calls[0]["tool"] == "playwright_browser_evaluate"
 
     @pytest.mark.asyncio
     async def test_return_structure(self, extraction_tools, mock_context):
         result = await extraction_tools["web_extract_links"](ctx=mock_context)
 
-        assert set(result.keys()) == {"snapshot", "filter", "instruction"}
+        assert set(result.keys()) == {"links", "count", "filter"}
 
     @pytest.mark.asyncio
-    async def test_no_filter_instruction(self, extraction_tools, mock_context):
+    async def test_returns_structured_links(self, extraction_tools, mock_context):
         result = await extraction_tools["web_extract_links"](ctx=mock_context)
 
-        assert "all links" in result["instruction"].lower()
+        assert isinstance(result["links"], list)
+        assert result["count"] == len(result["links"])
         assert result["filter"] is None
 
     @pytest.mark.asyncio
@@ -194,23 +195,26 @@ class TestWebExtractLinksIntegration:
         )
 
         assert result["filter"] == "privacy"
-        assert "privacy" in result["instruction"]
+        # Should only contain links matching "privacy"
+        for link in result["links"]:
+            text_lower = link.get("text", "").lower()
+            href_lower = link.get("href", "").lower()
+            assert "privacy" in text_lower or "privacy" in href_lower
 
     @pytest.mark.asyncio
-    async def test_filter_appears_in_instruction(self, extraction_tools, mock_context):
-        result = await extraction_tools["web_extract_links"](
+    async def test_filter_reduces_count(self, extraction_tools, mock_context):
+        all_result = await extraction_tools["web_extract_links"](ctx=mock_context)
+        filtered = await extraction_tools["web_extract_links"](
             ctx=mock_context, filter_text="dashboard",
         )
 
-        instruction = result["instruction"]
-        assert "dashboard" in instruction
-        # Should instruct to only include matching links
-        assert "only include" in instruction.lower() or "filter" in instruction.lower()
+        assert filtered["count"] <= all_result["count"]
+        assert filtered["count"] == len(filtered["links"])
 
     @pytest.mark.asyncio
-    async def test_instruction_mentions_link_structure(self, extraction_tools, mock_context):
+    async def test_links_have_text_and_href(self, extraction_tools, mock_context):
         result = await extraction_tools["web_extract_links"](ctx=mock_context)
-        instruction = result["instruction"].lower()
 
-        assert "text" in instruction
-        assert "href" in instruction or "url" in instruction
+        for link in result["links"]:
+            assert "text" in link
+            assert "href" in link

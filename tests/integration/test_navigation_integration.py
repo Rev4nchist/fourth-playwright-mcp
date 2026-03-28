@@ -29,20 +29,22 @@ class TestWebNavigateAndWaitIntegration:
         assert nav_calls[0]["args"]["url"] == url
 
     @pytest.mark.asyncio
-    async def test_without_wait_for_text_polls_via_snapshot(
+    async def test_without_wait_for_text_uses_time_wait(
         self, navigation_tools, mock_context, tool_calls,
     ):
-        """When no wait_for_text, should poll via snapshot then do a final snapshot."""
+        """When no wait_for_text, should use time-based wait then snapshot."""
         await navigation_tools["web_navigate_and_wait"](
             url="https://example.com", ctx=mock_context,
         )
 
         tool_names = [c["tool"] for c in tool_calls]
-        # First: navigate, then at least one polling snapshot, then final snapshot
         assert tool_names[0] == "playwright_browser_navigate"
+        # Should call wait_for with time param, then one final snapshot
+        wait_calls = [c for c in tool_calls if c["tool"] == "playwright_browser_wait_for"]
+        assert len(wait_calls) == 1
+        assert wait_calls[0]["args"] == {"time": 2}
         snapshot_calls = [n for n in tool_names if n == "playwright_browser_snapshot"]
-        # At least 2: one from polling loop (which succeeds immediately) + final snapshot
-        assert len(snapshot_calls) >= 2
+        assert len(snapshot_calls) == 1
 
     @pytest.mark.asyncio
     async def test_with_wait_for_text_uses_wait_for(
@@ -166,18 +168,18 @@ class TestWebWaitForReadyIntegration:
         ]
 
     @pytest.mark.asyncio
-    async def test_polling_without_indicator(
+    async def test_time_wait_without_indicator(
         self, navigation_tools, mock_context, tool_calls,
     ):
-        """Without indicator_text, should poll via snapshot."""
+        """Without indicator_text, should use time-based wait."""
         result = await navigation_tools["web_wait_for_ready"](ctx=mock_context)
 
-        # Should succeed on first poll since our mock returns non-empty snapshot
         assert result["loaded"] is True
-        assert result["wait_seconds"] == 1
+        assert result["wait_seconds"] == 2
 
         tool_names = [c["tool"] for c in tool_calls]
-        assert all(t == "playwright_browser_snapshot" for t in tool_names)
+        assert "playwright_browser_wait_for" in tool_names
+        assert "playwright_browser_snapshot" in tool_names
 
     @pytest.mark.asyncio
     async def test_polling_returns_snapshot(self, navigation_tools, mock_context):

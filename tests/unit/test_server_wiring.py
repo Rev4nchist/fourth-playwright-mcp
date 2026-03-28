@@ -87,3 +87,71 @@ class TestServerConfiguration:
         tree = _parse_server()
         docstring = ast.get_docstring(tree)
         assert "General-purpose web automation" in docstring or "web automation" in docstring.lower()
+
+
+class TestNewToolModuleWiring:
+    """Verify new tool modules (search, content, session, scripting) are wired in."""
+
+    def test_search_import_in_server(self):
+        source = _read_server()
+        assert "from src.tools.search import register_search_tools" in source
+
+    def test_content_import_in_server(self):
+        source = _read_server()
+        assert "from src.tools.content import register_content_tools" in source
+
+    def test_session_import_in_server(self):
+        source = _read_server()
+        assert "from src.tools.session import register_session_tools" in source
+
+    def test_scripting_import_in_server(self):
+        source = _read_server()
+        assert "from src.tools.scripting import register_scripting_tools" in source
+
+    def test_search_registration_in_server(self):
+        source = _read_server()
+        assert "register_search_tools(mcp)" in source
+
+    def test_content_registration_in_server(self):
+        source = _read_server()
+        assert "register_content_tools(mcp)" in source
+
+    def test_session_registration_in_server(self):
+        source = _read_server()
+        assert "register_session_tools(mcp)" in source
+
+    def test_scripting_registration_in_server(self):
+        source = _read_server()
+        assert "register_scripting_tools(mcp)" in source
+
+    def test_search_module_importable(self):
+        from src.tools.search import register_search_tools
+        assert callable(register_search_tools)
+
+    def test_content_module_importable(self):
+        from src.tools.content import register_content_tools
+        assert callable(register_content_tools)
+
+    def test_session_module_importable(self):
+        from src.tools.session import register_session_tools
+        assert callable(register_session_tools)
+
+    def test_scripting_module_importable(self):
+        from src.tools.scripting import register_scripting_tools
+        assert callable(register_scripting_tools)
+
+    def test_server_instructions_mentions_web_search(self):
+        source = _read_server()
+        assert "web_search" in source
+
+    def test_server_instructions_mentions_web_extract_article(self):
+        source = _read_server()
+        assert "web_extract_article" in source
+
+    def test_server_instructions_mentions_web_extract_structured_data(self):
+        source = _read_server()
+        assert "web_extract_structured_data" in source
+
+    def test_server_instructions_mentions_web_save_session(self):
+        source = _read_server()
+        assert "web_save_session" in source

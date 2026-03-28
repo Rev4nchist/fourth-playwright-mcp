@@ -12,9 +12,13 @@ from src.auth import create_oauth_proxy
 from src.providers.playwright_subprocess import mount_playwright
 from src.providers.skills import mount_skills
 from src.tools.auth import register_auth_tools
+from src.tools.content import register_content_tools
 from src.tools.extraction import register_extraction_tools
 from src.tools.forms import register_form_tools
 from src.tools.navigation import register_navigation_tools
+from src.tools.scripting import register_scripting_tools
+from src.tools.search import register_search_tools
+from src.tools.session import register_session_tools
 
 SERVER_INSTRUCTIONS = """
 ## Browser Automation Guidelines
@@ -40,6 +44,20 @@ SERVER_INSTRUCTIONS = """
 
 7. **Tab management:** playwright_browser_tabs with action "close" without an index
    closes the current tab and auto-switches to the previous one.
+
+8. **Use web_search for research tasks.** It navigates to Google or DuckDuckGo with
+   optional site and date filters. Use web_search_and_extract for multi-page research.
+
+9. **Use web_extract_article for news and article pages.** It extracts clean article
+   text, title, author, and date via DOM parsing — faster and more reliable than
+   snapshot-based extraction for article content.
+
+10. **Use web_extract_structured_data for known page layouts.** Pass CSS selectors
+    mapped to field names for direct DOM extraction without LLM parsing.
+
+11. **Session persistence is best-effort.** web_save_session captures cookies and
+    localStorage via JavaScript. httpOnly cookies cannot be captured this way.
+    Use for sites where re-login is expensive.
 """.strip()
 
 # Create server with OAuth if configured
@@ -64,6 +82,10 @@ register_auth_tools(mcp)
 register_navigation_tools(mcp)
 register_extraction_tools(mcp)
 register_form_tools(mcp)
+register_search_tools(mcp)
+register_content_tools(mcp)
+register_session_tools(mcp)
+register_scripting_tools(mcp)
 
 
 # --- Wrapper: browser_wait_for with type coercion ---

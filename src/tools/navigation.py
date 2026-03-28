@@ -1,7 +1,5 @@
 """Web navigation tools."""
 
-import asyncio
-
 from fastmcp import Context, FastMCP
 
 
@@ -44,15 +42,11 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 loaded = False
                 elapsed = timeout_seconds
         else:
-            for attempt in range(timeout_seconds):
-                snapshot = await ctx.fastmcp.call_tool(
-                    "playwright_browser_snapshot", {}
-                )
-                elapsed = attempt + 1
-                if snapshot and str(snapshot).strip():
-                    loaded = True
-                    break
-                await asyncio.sleep(1)
+            await ctx.fastmcp.call_tool(
+                "playwright_browser_wait_for", {"time": 2}
+            )
+            loaded = True
+            elapsed = 2
 
         await ctx.report_progress(
             progress=0.9, total=1.0, message="Page loaded"
@@ -97,21 +91,15 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 "snapshot": snapshot,
             }
 
-        for attempt in range(timeout_seconds):
-            snapshot = await ctx.fastmcp.call_tool(
-                "playwright_browser_snapshot", {}
-            )
-            if snapshot and str(snapshot).strip():
-                return {
-                    "loaded": True,
-                    "wait_seconds": attempt + 1,
-                    "snapshot": snapshot,
-                }
-            await asyncio.sleep(1)
-
+        await ctx.fastmcp.call_tool(
+            "playwright_browser_wait_for", {"time": 2}
+        )
+        snapshot = await ctx.fastmcp.call_tool(
+            "playwright_browser_snapshot", {}
+        )
         return {
-            "loaded": False,
-            "wait_seconds": timeout_seconds,
+            "loaded": True,
+            "wait_seconds": 2,
             "snapshot": snapshot,
         }
 

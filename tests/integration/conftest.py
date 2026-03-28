@@ -83,6 +83,26 @@ def _make_dispatch(tool_calls: list[dict], *, fail_refs: set[str] | None = None)
             return "Selected option"
         if "press_key" in tool_name:
             return "Key pressed"
+        if "evaluate" in tool_name:
+            # Return plausible DOM extraction results based on the expression
+            expr = args.get("expression", "")
+            if "querySelectorAll('a[href]')" in expr:
+                return [
+                    {"text": "Home", "href": "https://example.com/"},
+                    {"text": "Dashboard", "href": "https://example.com/dashboard"},
+                    {"text": "Privacy Policy", "href": "https://example.com/privacy"},
+                ]
+            if "querySelectorAll('table')" in expr:
+                return [
+                    {
+                        "index": 0,
+                        "headers": ["Name", "Shift", "Hours"],
+                        "rows": [["Alice", "Morning", "8"], ["Bob", "Evening", "6"]],
+                        "row_count": 2,
+                    }
+                ]
+            # Generic fill result for login auto-fill
+            return {"username": True, "password": True}
         return "OK"
 
     return dispatch

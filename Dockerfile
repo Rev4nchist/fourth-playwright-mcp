@@ -23,8 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+# Install Node.js 22
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,14 +37,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-# Install Google Chrome stable (baked into image, not runtime dependency)
-RUN apt-get update && apt-get install -y wget gnupg2 --no-install-recommends && \
-    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    apt-get install -y ./google-chrome-stable_current_amd64.deb && \
-    rm -f google-chrome-stable_current_amd64.deb && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install Playwright browsers (system deps already satisfied by Chrome .deb above)
+# Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN npx playwright install chromium
 

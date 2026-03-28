@@ -11,17 +11,45 @@ def register_extraction_tools(mcp: FastMCP) -> None:
         ctx: Context,
         table_description: str = "main data table",
         format: str = "rows",
+        use_dom: bool = False,
     ) -> dict:
         """Extract structured data from a table on the current page.
 
         Takes a snapshot of the current page and returns the table data
-        with format-specific parsing instructions.
+        with format-specific parsing instructions, or extracts directly
+        from the DOM when use_dom is True.
 
         Args:
             table_description: Description of which table to extract
                              (e.g., 'employee schedule', 'inventory list')
             format: Output format - 'rows' (list of dicts), 'csv', or 'markdown'
+            use_dom: When True, extract tables directly via JS DOM queries
+                    instead of using the snapshot + instruction approach
         """
+        if use_dom:
+            await ctx.report_progress(
+                progress=0.3, total=1.0, message="Extracting tables from DOM"
+            )
+
+            table_js = """() => {
+    const tables = [...document.querySelectorAll('table')];
+    return tables.map((t, i) => {
+        const headers = [...t.querySelectorAll('th')].map(th => th.textContent.trim());
+        const rows = [...t.querySelectorAll('tbody tr, tr')].slice(headers.length ? 0 : 1).map(tr =>
+            [...tr.querySelectorAll('td')].map(td => td.textContent.trim())
+        );
+        return { index: i, headers, rows, row_count: rows.length };
+    });
+}"""
+            tables = await ctx.fastmcp.call_tool(
+                "playwright_browser_evaluate", {"expression": table_js}
+            )
+
+            return {
+                "tables": tables,
+                "count": len(tables),
+            }
+
         await ctx.report_progress(
             progress=0.3, total=1.0, message="Capturing page snapshot"
         )
@@ -108,26 +136,59 @@ def register_extraction_tools(mcp: FastMCP) -> None:
     ) -> dict:
         """Extract all links from the current page.
 
-        Returns the page snapshot with instructions to extract link data.
+        Uses DOM evaluation to extract link data directly. Falls back to
+        a snapshot + instruction approach if evaluation fails.
 
         Args:
-            filter_text: Optional text to filter links by (matches text or URL)
+            filter_text: Optional text to filter links by (matches text or URL,
+                        case-insensitive)
         """
-        snapshot = await ctx.fastmcp.call_tool("playwright_browser_snapshot", {})
-
-        instruction = (
-            "Extract all links from the page snapshot as a list of objects "
-            "with 'text' (link text) and 'href' (URL) properties."
+        links_js = (
+            "() => [...document.querySelectorAll('a[href]')].map(a => ({"
+            "    text: a.textContent.trim(),"
+            "    href: a.href"
+            "})).filter(l => l.text && l.href)"
         )
 
-        if filter_text:
-            instruction += (
-                f" Only include links where the text or URL contains "
-                f"'{filter_text}'."
+        try:
+            links = await ctx.fastmcp.call_tool(
+                "playwright_browser_evaluate", {"expression": links_js}
             )
 
-        return {
-            "snapshot": snapshot,
-            "filter": filter_text,
-            "instruction": instruction,
-        }
+            if filter_text:
+                ft = filter_text.lower()
+                links = [
+                    link
+                    for link in links
+                    if ft in link.get("text", "").lower()
+                    or ft in link.get("href", "").lower()
+                ]
+
+            return {
+                "links": links,
+                "count": len(links),
+                "filter": filter_text,
+            }
+
+        except Exception:
+            # Fallback to snapshot + instruction approach
+            snapshot = await ctx.fastmcp.call_tool(
+                "playwright_browser_snapshot", {}
+            )
+
+            instruction = (
+                "Extract all links from the page snapshot as a list of objects "
+                "with 'text' (link text) and 'href' (URL) properties."
+            )
+
+            if filter_text:
+                instruction += (
+                    f" Only include links where the text or URL contains "
+                    f"'{filter_text}'."
+                )
+
+            return {
+                "snapshot": snapshot,
+                "filter": filter_text,
+                "instruction": instruction,
+            }

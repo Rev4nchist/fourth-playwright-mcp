@@ -139,11 +139,13 @@ class TestWebWaitForReady:
         assert len(snapshot_calls) >= 1
 
     @pytest.mark.asyncio
-    async def test_timeout_returns_false(self):
+    async def test_time_wait_always_returns_loaded(self):
         ctx = make_ctx()
         ctx.fastmcp.call_tool = AsyncMock(return_value="")
         result = await self.tool(ctx=ctx, timeout_seconds=2)
-        assert result["loaded"] is False
+        # Time-based wait always reports loaded (no way to detect failure)
+        assert result["loaded"] is True
+        assert result["wait_seconds"] == 2
 
     @pytest.mark.asyncio
     async def test_docstring(self):

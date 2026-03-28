@@ -49,6 +49,28 @@ This skill provides patterns for effective web automation using Playwright Web M
 - Use `web_fill_form` for batch input instead of individual type calls
 - Batch related actions together
 
+## Search
+- **`web_search`** — Search Google or DuckDuckGo with optional site and date filters. Returns a snapshot with extraction instructions for result links.
+- **`web_search_and_extract`** — Search + multi-page extraction workflow. Searches, then visits top result pages and extracts content.
+
+## Content Extraction
+- **`web_extract_article`** — Extract clean article text via DOM parsing. Returns structured data: title, author, date, and body text. Faster and more reliable than snapshot-based extraction for article content.
+- **`web_extract_metadata`** — Extract page metadata: OpenGraph tags, JSON-LD structured data, and standard meta tags.
+- **`web_save_pdf`** — Save the current page as a PDF file.
+
+## Session Management
+- **`web_save_session`** — Capture cookies and localStorage for later restoration. Note: httpOnly cookies cannot be captured via JavaScript — session persistence is best-effort.
+- **`web_load_session`** — Restore a previously saved session (cookies + localStorage).
+
+## Scripting
+- **`web_execute_js`** — Run arbitrary JavaScript in the page context with error handling. Returns the result as JSON.
+- **`web_extract_structured_data`** — CSS selector-based data extraction. Pass a map of field names to CSS selectors for direct DOM extraction without LLM parsing. Returns actual extracted data.
+
+## Enhanced Tools
+- **`web_extract_links`** — Now returns actual `{text, href}` objects via DOM extraction (not just LLM instructions). Use `filter_text` to narrow results.
+- **`web_extract_table`** — New `use_dom=True` option for direct table extraction from the DOM, bypassing snapshot-based parsing.
+- **`web_login`** — New `auto_fill=True` option for automatic credential filling when username and password are provided.
+
 ## Anti-Patterns
 - Don't take screenshots when a snapshot would suffice
 - Don't click elements without first snapshotting to find refs

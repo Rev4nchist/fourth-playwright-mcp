@@ -172,37 +172,193 @@ class TestWebExtractLinks:
         self.tool = self.mcp._registered_tools["web_extract_links"]
 
     @pytest.mark.asyncio
-    async def test_returns_snapshot(self):
+    async def test_returns_links_key(self):
+        """DOM extraction returns 'links' key instead of 'snapshot'."""
+        mock_links = [{"text": "Test", "href": "https://example.com"}]
         ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
         result = await self.tool(ctx=ctx)
-        assert "snapshot" in result
+        assert "links" in result
 
     @pytest.mark.asyncio
-    async def test_returns_instruction(self):
+    async def test_returns_count_key(self):
+        """DOM extraction returns 'count' key instead of 'instruction'."""
+        mock_links = [{"text": "Test", "href": "https://example.com"}]
         ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
         result = await self.tool(ctx=ctx)
-        assert "instruction" in result
-        assert "link" in result["instruction"].lower()
+        assert "count" in result
 
     @pytest.mark.asyncio
     async def test_returns_filter(self):
+        mock_links = [{"text": "Test", "href": "https://example.com"}]
         ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
         result = await self.tool(ctx=ctx)
         assert "filter" in result
         assert result["filter"] is None
 
     @pytest.mark.asyncio
     async def test_with_filter_text(self):
+        mock_links = [
+            {"text": "Reports", "href": "https://example.com/reports"},
+            {"text": "Home", "href": "https://example.com/"},
+        ]
         ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
         result = await self.tool(ctx=ctx, filter_text="reports")
         assert result["filter"] == "reports"
-        assert "reports" in result["instruction"]
 
     @pytest.mark.asyncio
-    async def test_calls_snapshot(self):
+    async def test_calls_evaluate_for_dom_extraction(self):
+        """web_extract_links should use playwright_browser_evaluate for DOM extraction."""
         ctx = make_ctx()
         await self.tool(ctx=ctx)
-        ctx.fastmcp.call_tool.assert_called_with("playwright_browser_snapshot", {})
+        calls = ctx.fastmcp.call_tool.call_args_list
+        evaluate_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(evaluate_calls) == 1, "Should call playwright_browser_evaluate once"
+
+    @pytest.mark.asyncio
+    async def test_returns_links_list(self):
+        """web_extract_links should return structured links data."""
+        mock_links = [
+            {"text": "Home", "href": "https://example.com/"},
+            {"text": "About", "href": "https://example.com/about"},
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
+        result = await self.tool(ctx=ctx)
+        assert "links" in result
+        assert result["links"] == mock_links
+
+    @pytest.mark.asyncio
+    async def test_returns_count(self):
+        """web_extract_links should return count of links."""
+        mock_links = [
+            {"text": "Home", "href": "https://example.com/"},
+            {"text": "About", "href": "https://example.com/about"},
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
+        result = await self.tool(ctx=ctx)
+        assert "count" in result
+        assert result["count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_filter_text_filters_links(self):
+        """filter_text should filter results case-insensitively on text or href."""
+        mock_links = [
+            {"text": "Home", "href": "https://example.com/"},
+            {"text": "Reports Dashboard", "href": "https://example.com/reports"},
+            {"text": "About", "href": "https://example.com/about"},
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
+        result = await self.tool(ctx=ctx, filter_text="reports")
+        assert len(result["links"]) == 1
+        assert result["links"][0]["text"] == "Reports Dashboard"
+        assert result["count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_filter_text_matches_href(self):
+        """filter_text should also match against href."""
+        mock_links = [
+            {"text": "Click Here", "href": "https://example.com/dashboard"},
+            {"text": "Other Link", "href": "https://example.com/other"},
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
+        result = await self.tool(ctx=ctx, filter_text="dashboard")
+        assert len(result["links"]) == 1
+        assert result["links"][0]["text"] == "Click Here"
+
+    @pytest.mark.asyncio
+    async def test_filter_text_case_insensitive(self):
+        """Filtering should be case-insensitive."""
+        mock_links = [
+            {"text": "HOME PAGE", "href": "https://example.com/"},
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
+        result = await self.tool(ctx=ctx, filter_text="home")
+        assert len(result["links"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_fallback_on_evaluate_failure(self):
+        """If evaluate fails, should fall back to snapshot + instruction approach."""
+
+        async def side_effect(tool_name, args):
+            if tool_name == "playwright_browser_evaluate":
+                raise Exception("evaluate failed")
+            return "<snapshot content>"
+
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(side_effect=side_effect)
+        result = await self.tool(ctx=ctx)
+        # Fallback should return instruction-based result
+        assert "instruction" in result
+        assert "snapshot" in result
+
+    @pytest.mark.asyncio
+    async def test_filter_in_result(self):
+        """Result should include filter value."""
+        mock_links = [{"text": "Home", "href": "https://example.com/"}]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_links)
+        result = await self.tool(ctx=ctx, filter_text="test")
+        assert result["filter"] == "test"
+
+
+class TestWebExtractTableDom:
+    """Tests for the use_dom parameter on web_extract_table."""
+
+    def setup_method(self):
+        self.mcp = make_mcp()
+        register_extraction_tools(self.mcp)
+        self.tool = self.mcp._registered_tools["web_extract_table"]
+
+    @pytest.mark.asyncio
+    async def test_use_dom_false_returns_instruction(self):
+        """Default (use_dom=False) should use snapshot + instruction approach."""
+        ctx = make_ctx()
+        result = await self.tool(ctx=ctx, use_dom=False)
+        assert "instruction" in result
+        assert "snapshot" in result
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_calls_evaluate(self):
+        """use_dom=True should call playwright_browser_evaluate."""
+        mock_tables = [
+            {"index": 0, "headers": ["Name", "Age"], "rows": [["Alice", "30"]], "row_count": 1}
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_tables)
+        await self.tool(ctx=ctx, use_dom=True)
+        calls = ctx.fastmcp.call_tool.call_args_list
+        evaluate_calls = [c for c in calls if c[0][0] == "playwright_browser_evaluate"]
+        assert len(evaluate_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_use_dom_true_returns_tables(self):
+        """use_dom=True should return structured table data."""
+        mock_tables = [
+            {"index": 0, "headers": ["Name", "Age"], "rows": [["Alice", "30"]], "row_count": 1}
+        ]
+        ctx = make_ctx()
+        ctx.fastmcp.call_tool = AsyncMock(return_value=mock_tables)
+        result = await self.tool(ctx=ctx, use_dom=True)
+        assert "tables" in result
+        assert "count" in result
+        assert result["count"] == 1
+        assert result["tables"][0]["headers"] == ["Name", "Age"]
+
+    @pytest.mark.asyncio
+    async def test_use_dom_default_is_false(self):
+        """Default behavior should be snapshot + instruction (use_dom=False)."""
+        ctx = make_ctx()
+        result = await self.tool(ctx=ctx)
+        assert "instruction" in result
+        assert "snapshot" in result
 
 
 class TestExtractionRegistration:

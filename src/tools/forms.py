@@ -53,6 +53,11 @@ def register_form_tools(mcp: FastMCP) -> None:
                     - ref: Element ref ID from snapshot
                     - value: Text to fill or option to select
                     - type: Field type (text, email, password, select, checkbox, radio, textarea)
+
+        Note:
+            For checkbox and radio fields, the click toggles the current state. Use
+            web_discover_form first to check current values, and only include checkboxes
+            in the fields list if they need to be toggled.
         """
         await ctx.report_progress(
             progress=0.1, total=1.0, message="Filling form fields"
