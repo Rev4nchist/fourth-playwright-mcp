@@ -139,19 +139,23 @@ def register_search_tools(mcp: FastMCP) -> None:
 
         extracted_results: list = []
         try:
-            extracted_results = await ctx.fastmcp.call_tool(
+            raw = await ctx.fastmcp.call_tool(
                 "playwright_browser_evaluate",
                 {"function": search_extract_js},
             )
+            # Convert ToolResult to plain list
+            extracted_results = list(raw) if isinstance(raw, list) else []
         except Exception:
-            pass  # Fall back to snapshot + instruction
+            extracted_results = []
+
+        results_slice = extracted_results[:num_results] if extracted_results else []
 
         return {
             "query": query,
             "engine": engine,
             "url": url,
-            "results": extracted_results[:num_results],
-            "results_count": len(extracted_results[:num_results]),
+            "results": results_slice,
+            "results_count": len(results_slice),
             "snapshot": snapshot,
             "instruction": (
                 f"Extract the top {num_results} search results from the snapshot. "
