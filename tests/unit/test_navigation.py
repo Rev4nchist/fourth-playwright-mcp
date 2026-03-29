@@ -145,7 +145,8 @@ class TestWebWaitForReady:
         result = await self.tool(ctx=ctx, timeout_seconds=2)
         # Time-based wait always reports loaded (no way to detect failure)
         assert result["loaded"] is True
-        assert result["wait_seconds"] == 2
+        # Human-like random delay: 0.5-2.0s
+        assert 0.5 <= result["wait_seconds"] <= 2.0
 
     @pytest.mark.asyncio
     async def test_docstring(self):

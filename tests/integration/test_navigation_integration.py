@@ -42,7 +42,9 @@ class TestWebNavigateAndWaitIntegration:
         # Should call wait_for with time param, then one final snapshot
         wait_calls = [c for c in tool_calls if c["tool"] == "playwright_browser_wait_for"]
         assert len(wait_calls) == 1
-        assert wait_calls[0]["args"] == {"time": 10}
+        # Human-like random delay between 0.5 and 2.0 seconds
+        wait_time = wait_calls[0]["args"]["time"]
+        assert 0.5 <= wait_time <= 2.0
         snapshot_calls = [n for n in tool_names if n == "playwright_browser_snapshot"]
         assert len(snapshot_calls) == 1
 
@@ -113,7 +115,7 @@ class TestWebNavigateAndWaitIntegration:
         )
 
         assert isinstance(result["wait_seconds"], (int, float))
-        assert result["wait_seconds"] >= 1
+        assert result["wait_seconds"] >= 0.5  # Human-like random delay
 
     @pytest.mark.asyncio
     async def test_progress_reported(self, navigation_tools, mock_context):
@@ -175,7 +177,8 @@ class TestWebWaitForReadyIntegration:
         result = await navigation_tools["web_wait_for_ready"](ctx=mock_context)
 
         assert result["loaded"] is True
-        assert result["wait_seconds"] == 10
+        # Human-like random delay between 0.5 and 2.0 seconds
+        assert 0.5 <= result["wait_seconds"] <= 2.0
 
         tool_names = [c["tool"] for c in tool_calls]
         assert "playwright_browser_wait_for" in tool_names

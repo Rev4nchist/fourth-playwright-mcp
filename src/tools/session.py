@@ -4,12 +4,16 @@ import json
 
 from fastmcp import Context, FastMCP
 
-# In-memory session storage (lives as long as the server process)
+# Session store persists across MCP calls within the same server process.
+# Sessions are lost on server restart (Railway redeploy).
+# For persistent sessions across restarts, use web_save_session with
+# a known session_name, then web_load_session at the start of each research session.
 _session_store: dict[str, dict] = {}
 
 SAVE_SESSION_JS = """
 () => ({
     url: window.location.href,
+    origin: window.location.origin,
     cookies: document.cookie,
     localStorage: (() => {
         try {
@@ -30,7 +34,9 @@ SAVE_SESSION_JS = """
             }
             return items;
         } catch { return {}; }
-    })()
+    })(),
+    userAgent: navigator.userAgent,
+    timestamp: new Date().toISOString()
 })
 """
 
@@ -141,6 +147,30 @@ def register_session_tools(mcp: FastMCP) -> None:
             except Exception:
                 pass
 
+        await ctx.report_progress(
+            progress=0.7, total=1.0, message="Restoring sessionStorage"
+        )
+
+        # Inject sessionStorage
+        session_storage = (
+            session_data.get("sessionStorage", {})
+            if isinstance(session_data, dict)
+            else {}
+        )
+        if session_storage and isinstance(session_storage, dict):
+            ss_data = json.dumps(session_storage)
+            ss_js = (
+                f"() => {{ const items = {ss_data};"
+                " for (const [k, v] of Object.entries(items))"
+                " { sessionStorage.setItem(k, v); } }"
+            )
+            try:
+                await ctx.fastmcp.call_tool(
+                    "playwright_browser_evaluate", {"function": ss_js}
+                )
+            except Exception:
+                pass
+
         await ctx.report_progress(progress=0.8, total=1.0, message="Reloading page")
 
         # Reload to apply restored state
@@ -156,3 +186,20 @@ def register_session_tools(mcp: FastMCP) -> None:
             "url": url,
             "snapshot": snapshot,
         }
+
+    @mcp.tool
+    async def web_list_sessions(ctx: Context) -> dict:
+        """List all saved browser sessions.
+
+        Returns the names and metadata of all sessions saved in this server process.
+        Useful for checking what sessions are available before loading one.
+        """
+        sessions = {}
+        for name, data in _session_store.items():
+            sessions[name] = {
+                "url": data.get("url", "unknown") if isinstance(data, dict) else "unknown",
+                "timestamp": (
+                    data.get("timestamp", "unknown") if isinstance(data, dict) else "unknown"
+                ),
+            }
+        return {"sessions": sessions, "count": len(sessions)}

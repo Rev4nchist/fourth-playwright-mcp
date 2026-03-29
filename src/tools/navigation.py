@@ -1,5 +1,7 @@
 """Web navigation tools."""
 
+import random
+
 from fastmcp import Context, FastMCP
 
 
@@ -42,7 +44,8 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 loaded = False
                 elapsed = timeout_seconds
         else:
-            wait_time = min(timeout_seconds, 30)
+            # Human-like delay: 0.5-2s random pause after navigation
+            wait_time = round(random.uniform(0.5, 2.0), 1)
             await ctx.fastmcp.call_tool(
                 "playwright_browser_wait_for", {"time": wait_time}
             )
@@ -92,7 +95,8 @@ def register_navigation_tools(mcp: FastMCP) -> None:
                 "snapshot": snapshot,
             }
 
-        wait_time = min(timeout_seconds, 30)
+        # Human-like delay: 0.5-2s random pause
+        wait_time = round(random.uniform(0.5, 2.0), 1)
         await ctx.fastmcp.call_tool(
             "playwright_browser_wait_for", {"time": wait_time}
         )
