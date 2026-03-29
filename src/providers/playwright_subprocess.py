@@ -50,7 +50,7 @@ def mount_playwright(mcp: FastMCP) -> None:
     ])
 
     # Viewport for consistent rendering
-    args.extend(["--viewport", "1366,768"])
+    args.extend(["--viewport-size", "1366,768"])
 
     # Proxy support via environment variables
     proxy_server = os.environ.get("PLAYWRIGHT_PROXY_SERVER")

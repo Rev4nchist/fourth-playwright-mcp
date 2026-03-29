@@ -6,6 +6,7 @@
 - Started: 2026-03-29
 
 ## Completed
+- [x] [feat] add stealth, proxy, human-like behavior, session persistence (2026-03-29) `09abc00`
 - [x] [fix] web_search ToolResult not subscriptable error (2026-03-29) `19e152e`
 - [x] [fix] rename evaluate param from 'expression' to 'function' for @playwright/mcp 0.0.68 (2026-03-28) `79db112`
 - [x] [fix] parse accessibility tree for form fields when DOM extraction fails (2026-03-28) `8a46e34`
